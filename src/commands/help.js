@@ -1,0 +1,90 @@
+import { SlashCommandBuilder } from 'discord.js';
+import { card, ACCENT } from '../lib/theme.js';
+import { paginate } from '../lib/components.js';
+import { CROPS } from '../data/tables.js';
+
+const PAGES = [
+  {
+    label: 'dock',
+    title: 'the dock',
+    body:
+      '`/start` — open a dock and pick a real port\n' +
+      '`/profile` — public card: level, streak, collection\n' +
+      '`/balance` — wallet, bank, portfolio\n' +
+      '`/daily` — streak-based payout, resets after two missed days\n' +
+      '`/work` — 30 minute shift, pays more in bad weather\n' +
+      '`/pay` — send shells to another dock\n' +
+      '`/bank` — deposit or withdraw; the vault caps it'
+  },
+  {
+    label: 'exchange',
+    title: 'the exchange',
+    body:
+      '`/market` — five live instruments, refresh button\n' +
+      '`/trade` — buy or sell at the quoted price, 0.5% fee\n' +
+      '`/holdings` — cost basis and unrealised profit\n' +
+      '`/sell` — dump fish and crops at today\'s local price\n\n' +
+      'prices come from public crypto and currency feeds. no API keys, no accounts.'
+  },
+  {
+    label: 'water',
+    title: 'the water',
+    body:
+      '`/fish` — swell height changes what bites\n' +
+      '`/garden plant` — crops, real weather at your port\n' +
+      '`/garden harvest` — weather multiplies the yield\n' +
+      '`/garden view` — what is growing and the current sky\n' +
+      '`/catch` — a random pokedex entry, duplicates pay a bounty\n\n' +
+      `crops: ${Object.values(CROPS)
+        .map((c) => `${c.name} (${Math.round(c.growMs / 60000)}m)`)
+        .join(', ')}`
+  },
+  {
+    label: 'games',
+    title: 'games',
+    body:
+      '`/trivia` — four buttons, 15 seconds, streak bonus\n' +
+      '`/slots` — three reels. jackpot 20×, triple 8×, pair 1.6×\n\n' +
+      'everything is house-favoured, nothing is rigged beyond that.'
+  },
+  {
+    label: 'kit',
+    title: 'the chandlery',
+    body:
+      '`/shop` — rod, net, vault, charm and what each level does\n' +
+      '`/shop item:<name>` — buy the next level\n' +
+      '`/inventory` — kit, hold and collection\n' +
+      '`/leaderboard` — worth, level, streak or collection\n\n' +
+      'upgrades are permanent and apply to every future roll.'
+  },
+  {
+    label: 'meta',
+    title: 'house rules',
+    body:
+      '`/settings` — market ticker channel (manage server only)\n' +
+      '`/help` — this board\n\n' +
+      'no prefix commands. no message content is read. no database - a single json file holds saves.\n\n' +
+      'the market, the weather and the pokedex are all public APIs with no key. if one is down the bot keeps running on the last good value or a local fallback.'
+  }
+];
+
+export default {
+  data: new SlashCommandBuilder().setName('help').setDescription('the command board'),
+
+  ephemeral: true,
+
+  async run({ interaction, client }) {
+    const pages = PAGES.map((page) => ({
+      label: page.label,
+      embed: () =>
+        card({
+          title: page.title,
+          description: page.body,
+          color: ACCENT,
+          footer: `${client.commands.size} commands · Tidewater`
+        })
+    }));
+
+    await paginate(interaction, pages, { build: (i) => pages[i].embed() });
+  }
+};
