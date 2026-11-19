@@ -49,9 +49,9 @@ export default {
     const net = payout - wager;
 
     const { result, fresh } = await economy.update(interaction.user.id, (p) => {
+      if (!debit(p, wager)) return { ok: false };
       p.stats.spins += 1;
       p.stats.gambled += wager;
-      if (!debit(p, wager)) return { ok: false };
       if (payout) {
         credit(p, payout);
         p.stats.won += payout;

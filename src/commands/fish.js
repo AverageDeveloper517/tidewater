@@ -6,7 +6,6 @@ import { FISH } from '../data/tables.js';
 import { waveMood } from '../services/weather.js';
 import { weighted } from '../lib/util.js';
 import { GLYPH } from '../lib/emoji.js';
-import { goodPrice } from '../services/market.js';
 
 const RARITY_COLOR = {
   junk: 0x6c757d,
@@ -21,7 +20,7 @@ export default {
   ephemeral: true,
   cooldownMs: 45_000,
 
-  async run({ interaction, reply, economy, weather }) {
+  async run({ interaction, reply, economy, weather, market }) {
     const player = economy.get(interaction.user.id);
     if (await requireProfile(reply, player)) return;
 
@@ -51,7 +50,7 @@ export default {
       return { key: hit.key, fish: hit.fish, coin, total: p.goods[hit.key] };
     });
 
-    const unit = goodPrice(result.key, 1);
+    const unit = await market.goods(result.key);
 
     return reply({
       embeds: [

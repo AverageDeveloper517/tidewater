@@ -3,6 +3,7 @@ import { card, shells, num, ACCENT, GOLD } from '../lib/theme.js';
 import { requireProfile } from '../lib/flow.js';
 import { ITEMS } from '../data/items.js';
 import { GOODS } from '../data/goods.js';
+import { goodPrice } from '../services/market.js';
 
 const pips = (level, max) => '●'.repeat(level) + '○'.repeat(Math.max(0, max - level));
 
@@ -25,7 +26,7 @@ export default {
     const goods = Object.entries(player.goods)
       .filter(([, qty]) => qty > 0)
       .map(([key, qty]) => {
-        const unit = Math.round((GOODS[key]?.base ?? 0) * board.fxFactor);
+        const unit = goodPrice(key, board.fxFactor);
         return `${GOODS[key]?.name ?? key} ×${num(qty)} · ~${shells(unit * qty)}`;
       })
       .join('\n');

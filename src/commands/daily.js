@@ -39,7 +39,7 @@ export default {
       p.lastDaily = now;
       credit(p, base + bonus);
       addXp(p, 20);
-      return { base, bonus, total: base + bonus, streak };
+      return { base, bonus, total: base + bonus, streak, wallet: p.wallet };
     });
 
     const body =
@@ -54,7 +54,7 @@ export default {
           title: 'the day is yours',
           description: body,
           color: OK,
-          fields: [{ name: 'wallet', value: shells(player.wallet + result.total) }]
+          fields: [{ name: 'wallet', value: shells(result.wallet) }]
         })
       ]
     });

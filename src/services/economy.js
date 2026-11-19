@@ -24,6 +24,7 @@ export function blankPlayer({ id, name }) {
     garden: null,
     goods: {},
     catches: {},
+    guilds: {},
     items: { rod: 1, net: 1, vault: 1, charm: 0 },
     stats: {
       work: 0,
@@ -129,6 +130,22 @@ export function createEconomy({ store }) {
         save(all);
         return structuredClone(all[id]);
       });
+    },
+
+    /**
+     * Record that a player has been seen in a guild, once. Used to scope the
+     * leaderboard to the server it was asked from instead of the whole bot.
+     * Synchronous on purpose: it runs after every command and must not queue.
+     */
+    markGuild(id, guildId) {
+      if (!guildId) return false;
+      const all = load();
+      const player = all[id];
+      if (!player) return false;
+      if (player.guilds?.[guildId]) return false;
+      player.guilds = { ...(player.guilds ?? {}), [guildId]: Date.now() };
+      save(all);
+      return true;
     },
 
     async update(id, fn) {

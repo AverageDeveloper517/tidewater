@@ -37,10 +37,15 @@ export default {
     const metric = options.getString('metric') ?? 'worth';
     const { prices } = await market.board();
 
-    const players = economy.list();
+    const players = economy.list().filter((player) => {
+      // players from before guild tracking show everywhere; everyone else is scoped
+      if (!player.guilds || !Object.keys(player.guilds).length) return true;
+      return Boolean(player.guilds[interaction.guildId]);
+    });
+
     if (!players.length) {
       return reply({
-        embeds: [card({ title: 'nobody here', description: 'no docks yet. `/start` opens the first one.', color: ACCENT })]
+        embeds: [card({ title: 'nobody here', description: 'no docks in this server yet. `/start` opens the first one.', color: ACCENT })]
       });
     }
 

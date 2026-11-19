@@ -9,12 +9,14 @@ const PAGES = [
     title: 'the dock',
     body:
       '`/start` — open a dock and pick a real port\n' +
+      '`/dock` — one card: port, sky, garden, net worth\n' +
       '`/profile` — public card: level, streak, collection\n' +
       '`/balance` — wallet, bank, portfolio\n' +
       '`/daily` — streak-based payout, resets after two missed days\n' +
       '`/work` — 30 minute shift, pays more in bad weather\n' +
       '`/pay` — send shells to another dock\n' +
-      '`/bank` — deposit or withdraw; the vault caps it'
+      '`/bank` — deposit or withdraw; the vault caps it\n' +
+      '`/achievements` — what you have unlocked and what is left'
   },
   {
     label: 'exchange',
@@ -32,9 +34,10 @@ const PAGES = [
     body:
       '`/fish` — swell height changes what bites\n' +
       '`/garden plant` — crops, real weather at your port\n' +
-      '`/garden harvest` — weather multiplies the yield\n' +
+      '`/garden harvest` — weather and season multiply the yield\n' +
       '`/garden view` — what is growing and the current sky\n' +
       '`/catch` — a random pokedex entry, duplicates pay a bounty\n\n' +
+      'the season follows the real calendar. it multiplies every crop differently, so what pays depends on the month.\n\n' +
       `crops: ${Object.values(CROPS)
         .map((c) => `${c.name} (${Math.round(c.growMs / 60000)}m)`)
         .join(', ')}`
@@ -54,7 +57,7 @@ const PAGES = [
       '`/shop` — rod, net, vault, charm and what each level does\n' +
       '`/shop item:<name>` — buy the next level\n' +
       '`/inventory` — kit, hold and collection\n' +
-      '`/leaderboard` — worth, level, streak or collection\n\n' +
+      '`/leaderboard` — worth, level, streak or collection (this server)\n\n' +
       'upgrades are permanent and apply to every future roll.'
   },
   {

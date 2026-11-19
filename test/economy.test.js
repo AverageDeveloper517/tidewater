@@ -112,3 +112,21 @@ test('achievements unlock once and pay once', async () => {
   });
   assert.equal(second.fresh.length, 0);
 });
+
+test('markGuild records each guild once and ignores unknown players', async () => {
+  const economy = createEconomy({ store: memoryStore() });
+  await economy.create('4', { name: 'g', port: null });
+
+  assert.deepEqual(economy.get('4').guilds, {});
+
+  assert.equal(economy.markGuild('4', 'guild-a'), true);
+  assert.equal(economy.markGuild('4', 'guild-a'), false, 'second hit is a no-op');
+  assert.equal(economy.markGuild('4', 'guild-b'), true);
+
+  const player = economy.get('4');
+  assert.deepEqual(Object.keys(player.guilds).sort(), ['guild-a', 'guild-b']);
+  assert.ok(player.guilds['guild-a'] > 0);
+
+  assert.equal(economy.markGuild('4', null), false, 'no guild id is a no-op');
+  assert.equal(economy.markGuild('nobody', 'guild-a'), false, 'unknown player is a no-op');
+});

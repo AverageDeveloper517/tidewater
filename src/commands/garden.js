@@ -4,6 +4,7 @@ import { requireProfile, unlockedText } from '../lib/flow.js';
 import { debit, addXp } from '../services/economy.js';
 import { CROPS } from '../data/tables.js';
 import { affinity } from '../services/weather.js';
+import { seasonFor, seasonCropMult } from '../lib/season.js';
 import { roll } from '../lib/util.js';
 
 const cropChoices = Object.entries(CROPS).map(([key, crop]) => ({ name: crop.name, value: key }));
@@ -95,6 +96,8 @@ export default {
     if (sub === 'view') {
       const wx = await weather.forecast(snapshot.port);
       const board = await market.board();
+      const season = seasonFor();
+      const seasonMult = snapshot.garden ? seasonCropMult(season, snapshot.garden.crop) : 1;
 
       if (!snapshot.garden) {
         return reply({
@@ -119,7 +122,9 @@ export default {
             color: left > 0 ? ACCENT : GOLD,
             fields: [
               { name: 'sky', value: `${wx.icon} ${wx.label}`, inline: true },
-              { name: 'multiplier', value: `×${affinity(wx.bucket, crop).toFixed(2)}`, inline: true },
+              { name: 'weather', value: `×${affinity(wx.bucket, crop).toFixed(2)}`, inline: true },
+              { name: 'season', value: `${season.glyph} ×${seasonMult.toFixed(2)}`, inline: true },
+              { name: 'combined', value: `×${(affinity(wx.bucket, crop) * seasonMult).toFixed(2)}`, inline: true },
               { name: 'fx drift', value: `${board.fxFactor.toFixed(2)}× local prices`, inline: true }
             ]
           })
@@ -143,6 +148,7 @@ export default {
     }
 
     const wx = await weather.forecast(snapshot.port);
+    const season = seasonFor();
 
     const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
       if (!p.garden) return { ok: false };
@@ -150,16 +156,17 @@ export default {
       const planted = CROPS[plantedKey];
       if (Date.now() - p.garden.at < planted.growMs) return { ok: false, early: true };
 
-      const mult = affinity(wx.bucket, planted);
+      const weatherMult = affinity(wx.bucket, planted);
+      const seasonMult = seasonCropMult(season, plantedKey);
       const base = roll(Math.random, planted.yield[0], planted.yield[1]) + ((p.items.net ?? 1) - 1);
-      const qty = Math.max(1, Math.round(base * mult));
+      const qty = Math.max(1, Math.round(base * weatherMult * seasonMult));
 
       p.goods[plantedKey] = (p.goods[plantedKey] ?? 0) + qty;
       p.garden = null;
       p.stats.harvest += 1;
       addXp(p, 10);
 
-      return { ok: true, qty, base, key: plantedKey, mult };
+      return { ok: true, qty, base, key: plantedKey, weatherMult, seasonMult };
     });
 
     if (!result?.ok) {
@@ -175,7 +182,8 @@ export default {
           title: `${crop.glyph} harvest`,
           description:
             `pulled **${result.qty} ${crop.name}** from ${result.base} base units.\n` +
-            `${wx.icon} ${wx.label} → ×${result.mult.toFixed(2)}` +
+            `${wx.icon} ${wx.label} → ×${result.weatherMult.toFixed(2)}\n` +
+            `${season.glyph} ${season.name} → ×${result.seasonMult.toFixed(2)}` +
             unlockedText(fresh),
           color: OK,
           fields: [

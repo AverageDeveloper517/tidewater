@@ -58,6 +58,7 @@ export async function execute({ client, interaction, logger }) {
     });
 
     logger.ok(`/${interaction.commandName} - ${Date.now() - started}ms`);
+    client.economy.markGuild(interaction.user.id, interaction.guildId);
   } catch (err) {
     logger.error(`/${interaction.commandName} failed:`, err);
     const payload = {
