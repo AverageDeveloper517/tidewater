@@ -1,17 +1,26 @@
 # Tidewater
 
-A dockside economy bot for Discord where the numbers are real.
+**A Discord economy bot where the numbers come from the real world.**
 
-The exchange runs on live crypto and currency prices. Your garden harvest depends on the actual
-weather in a city you pick. What bites depends on the real swell height offshore. Nothing needs an
-API key, a paid tier, or a signup.
+Live crypto and currency prices drive the exchange. The actual weather in a city you pick decides
+your harvest. The real swell height offshore decides what bites. Every data source is public and
+keyless - no API key, no paid tier, no signup.
 
-No privileged intents. No database. 21 slash commands.
+No privileged intents · no database · 21 slash commands · Node 18.17+
+
+[![Node](https://img.shields.io/badge/node-%E2%89%A518.17-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![discord.js](https://img.shields.io/badge/discord.js-v14-5865F2?logo=discord&logoColor=white)](https://discord.js.org)
+[![API keys](https://img.shields.io/badge/API%20keys-none%20required-2ec4b6)](#live-data)
+[![License](https://img.shields.io/badge/license-MIT-e9c46a)](LICENSE)
+
+Built with **discord.js v14** on Node ESM, with an in-process cache and graceful fallbacks for every
+feed. A complete Discord economy bot you can self-host in about five minutes.
 
 ---
 
 ## Contents
 
+- [What it looks like](#what-it-looks-like)
 - [Why it is not another daily/work/beg bot](#why-it-is-not-another-dailyworkbeg-bot)
 - [Quick start](#quick-start)
 - [Bot setup: scopes, intents, permissions](#bot-setup-scopes-intents-permissions)
@@ -25,9 +34,35 @@ No privileged intents. No database. 21 slash commands.
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
 - [Adding a command](#adding-a-command)
+- [Roadmap](#roadmap)
 - [License](#license)
 
 ---
+
+## What it looks like
+
+Real output, not mockups. The board refreshes against live prices; the harvest line reflects the
+weather at the port the player chose.
+
+```
+◆ the exchange
+≋ Tide — 3,012.29      ▲ +0.41%
+❖ Reef — 85.43         ▼ -1.12%
+✦ Glow — 3.39          ▲ +2.08%
+◎ Euro note — 110.14   ▬ 0.00%
+◇ Yen note — 0.63      ▼ -0.14%
+
+2 instruments moved in the last two minutes · 0.5% fee each way
+```
+
+```
+❀ harvest
+pulled 6 Kelp from 4 base units.
+☂ rain → ×1.40
+
+in the hold: 6      rough value: ◈ 182      sell it: /sell
+```
+
 
 ## Why it is not another daily/work/beg bot
 
@@ -418,6 +453,24 @@ Context handed to `run`:
 
 Drop the file in `src/commands/`, run `npm run deploy`, restart. The loader rejects duplicate names
 at boot.
+
+---
+
+## Roadmap
+
+Shipped: 21 commands, live market, weather-driven farming, swell-driven fishing, pokedex, trivia,
+slots, upgrades, achievements, keyless fallbacks, custom emoji pipeline.
+
+Next, roughly in order:
+
+- [ ] seasonal events keyed to real solstice and equinox dates
+- [ ] per-guild leaderboards with a monthly reset
+- [ ] prestige: reset a dock for a permanent multiplier
+- [ ] `/dock` - one rendered card with port, weather, garden and net worth
+- [ ] a shipped custom emoji art set in `assets/emoji/`
+- [ ] optional Postgres adapter for servers past ~50k players
+
+Not planned: prefix commands, message-content reading, paid API dependencies, privileged intents.
 
 ---
 
