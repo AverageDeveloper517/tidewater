@@ -6,7 +6,7 @@ Live crypto and currency prices drive the exchange. The actual weather in a city
 your harvest. The real swell height offshore decides what bites. Every data source is public and
 keyless - no API key, no paid tier, no signup.
 
-No privileged intents · no database · 21 slash commands · Node 18.17+
+No privileged intents · no database · 23 slash commands · Node 18.17+
 
 [![Node](https://img.shields.io/badge/node-%E2%89%A518.17-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![discord.js](https://img.shields.io/badge/discord.js-v14-5865F2?logo=discord&logoColor=white)](https://discord.js.org)
@@ -59,6 +59,7 @@ weather at the port the player chose.
 ❀ harvest
 pulled 6 Kelp from 4 base units.
 ☂ rain → ×1.40
+✧ spring → ×1.05
 
 in the hold: 6      rough value: ◈ 182      sell it: /sell
 ```
@@ -147,10 +148,11 @@ No role-position rules apply: the bot never creates, edits, deletes, or assigns 
 ```
 /start → pick a real port
    │
-   ├─ /daily ─── streak shells
-   ├─ /work ──── shift pay, +12% in rain, +35% in a storm
+   ├─ /dock ─── one card: port, sky, season, garden, net worth
+   ├─ /daily ── streak shells
+   ├─ /work ─── shift pay, +12% in rain, +35% in a storm
    │
-   ├─ /garden ── plant → real weather → harvest → /sell
+   ├─ /garden ── plant → real weather × real season → harvest → /sell
    ├─ /fish ──── real swell → loot table → /sell
    ├─ /catch ─── pokedex roll, duplicate → bounty
    │
@@ -173,6 +175,7 @@ Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 | command | what it does |
 |---|---|
 | `/start <port>` | create a profile, geocode a real city |
+| `/dock` | one card: port, sky, season, garden, net worth, cooldowns |
 | `/profile [user]` | public card: level, streak, collection, achievements |
 | `/balance` | wallet, bank, portfolio value |
 | `/daily` | 20h cooldown, streak bonus, resets after two missed days |
@@ -183,14 +186,15 @@ Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 | `/trade <buy\|sell> <instrument> <qty>` | market order at the quoted price |
 | `/holdings` | cost basis and unrealised profit per position |
 | `/sell <good> <qty>` | sell fish and crops at the local price |
-| `/garden plant\|harvest\|view` | crops, real weather, weather multiplier |
+| `/garden plant\|harvest\|view` | crops, real weather and real season multipliers |
 | `/fish` | swell-driven catch table, 45s cooldown |
 | `/catch` | random pokedex entry, bounty on duplicates, 90s cooldown |
 | `/trivia` | four buttons, 15 seconds, streak bonus |
 | `/slots <wager>` | 20× jackpot, 8× triple, 1.6× pair |
 | `/shop [item]` | shelf or buy the next upgrade |
 | `/inventory` | kit, hold, collection |
-| `/leaderboard [metric]` | worth, level, streak or collection |
+| `/achievements` | paginated list: unlocked, remaining, completion |
+| `/leaderboard [metric]` | worth, level, streak or collection - this server only |
 | `/help` | paginated command board |
 | `/settings <channel> <bool>` | market ticker channel, manage-server only |
 
@@ -220,6 +224,27 @@ quote, so the board is never fully static and never needs another API.
 Rate limits on CoinGecko's free tier are real - the 2 minute cache plus the persisted last-good
 snapshot keep a normal server well inside them.
 
+### Seasons
+
+The calendar is real too. `src/lib/season.js` reads the UTC month and returns one of four seasons,
+each with its own crop multipliers:
+
+| season | months | kelp | coral | brine |
+|---|---|---|---|---|
+| winter | Dec-Feb | ×1.10 | ×0.85 | ×0.90 |
+| spring | Mar-May | ×1.05 | ×1.00 | ×1.10 |
+| summer | Jun-Aug | ×0.90 | ×1.15 | ×1.20 |
+| autumn | Sep-Nov | ×1.15 | ×0.95 | ×1.00 |
+
+Weather and season stack. `/garden harvest` prints both multipliers, and `/dock` shows the current
+season and the full crop table in its footer, so a player can plan around the real month.
+
+### Server scoping
+
+`/leaderboard` is scoped to the server it is called from. The first successful command a player runs
+in a guild records that guild on their save, so one bot can serve several servers without every list
+being a global high-score table. Saves created before guild tracking stay visible everywhere.
+
 ---
 
 ## Architecture
@@ -229,12 +254,12 @@ Eco bot/
 ├─ src/
 │  ├─ index.js                 bootstrap: client, services, loaders, shutdown
 │  ├─ deploy-commands.js       diff-aware slash registration
-│  ├─ commands/                21 files: data + run
+│  ├─ commands/                23 files: data + run
 │  ├─ events/
 │  │  ├─ ready.js              presence rotation, market ticker, heartbeat
 │  │  └─ interactionCreate.js  gate → defer → run
 │  ├─ services/
-│  │  ├─ economy.js            players, per-user queue, levels, achievements
+│  │  ├─ economy.js            players, per-user queue, levels, achievements, guild marks
 │  │  ├─ market.js             live board, cache, fallbacks, goods pricing
 │  │  ├─ weather.js            geocode, forecast, waves, crop affinity
 │  │  ├─ pokedex.js            roll, rarity, sprite
@@ -257,12 +282,13 @@ Eco bot/
 │  │  ├─ http.js               one timeout, one cache, one fetch surface
 │  │  ├─ loader.js             command discovery + duplicate checks
 │  │  ├─ logger.js             leveled console output
+│  │  ├─ season.js             real-calendar seasons and crop multipliers
 │  │  ├─ store.js              atomic JSON persistence
 │  │  ├─ theme.js              palette, cards, formatting
 │  │  └─ util.js               seeded rng, weighted picks, dates
 │  └─ tools/
 │     └─ upload-emojis.js      push PNGs to application emojis
-├─ test/                       four suites, no network
+├─ test/                       five suites, no network
 ├─ assets/emoji/               drop art here, `npm run emojis`
 ├─ data/                       store.json at runtime
 ├─ Dockerfile · .dockerignore · ecosystem.config.cjs · .nvmrc
@@ -294,6 +320,7 @@ A player record:
   garden:   { crop, at } | null,
   goods:    { kelp: 3, pearl: 1 },
   catches:  { 25: { name: 'pikachu', count: 2, rarity: 'common' } },
+  guilds:   { '1234567890': 1730000000000 },   // first seen, for server leaderboards
   items:    { rod, net, vault, charm },
   stats:    { work, fish, harvest, trades, triviaRight, ... },
   achievements: ['first_light', 'dockhand'],
@@ -362,8 +389,9 @@ npm test
 ```
 
 ```
-test/economy.test.js   level curve, credit/debit guards, net worth, per-user serialisation, achievements
+test/economy.test.js   level curve, credit/debit guards, net worth, per-user serialisation, achievements, guild marks
 test/market.test.js    live pricing, dead feed fallback, last-good persistence, fee and daily drift
+test/season.test.js    month-to-season mapping, crop multipliers, year-round variance
 test/weather.test.js   WMO buckets, crop affinity, swell buckets, offline forecasts
 test/trivia.test.js    entity decoding, shuffle, remote and local question paths, formatting
 ```
@@ -397,6 +425,7 @@ ok   pokedex - tapu-koko (#785), base xp 257
 | `/start` says no such port | geocoding returned nothing | try a larger city |
 | prices never change | CoinGecko blocked or rate limited | 2 min cache is working; check `market` warnings in console |
 | garden multiplier looks random | it is the live weather in **your port** | `/garden view` shows the condition and multiplier |
+| harvest pays less than last month | the real-calendar season changed | `/dock` shows the current season and its crop table |
 | `/catch` shows "pokedex offline" | PokeAPI unreachable | it already used the harbour fallback list |
 | bank says vault is full | cap is 5,000 at vault level 1 | `/shop item:Vault` |
 | ticker silent | no channel set, or board is degraded | `/settings market_channel:#channel ticker:true` |
@@ -461,7 +490,7 @@ at boot.
 Three things still worth building:
 
 - seasonal events keyed to real solstice and equinox dates
-- per-guild leaderboards with a monthly reset
+- a monthly reset for the server leaderboard
 - a shipped custom emoji art set in `assets/emoji/`
 
 Not planned: prefix commands, message-content reading, paid API dependencies, privileged intents.
