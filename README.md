@@ -292,9 +292,10 @@ Discord timestamps, which means every reader sees their own clock.
 
 ## Harbour contracts
 
-Three jobs per server per UTC day, generated from a seeded hash of `date:guildId`. Everyone in the
-guild sees the same board; it changes at midnight UTC. Nothing is stored per guild - the board is a
-pure function, so it survives restarts and costs no extra JSON.
+Three jobs per server per UTC day. The seed is `date:guildId`, so the goods, clients and quantities
+are fixed for the day and everyone in the guild sees the same work. The payout is marked to the live
+local goods board, which means it drifts a little with the euro quote between views. Nothing is
+stored per guild - the board is a pure function, so it survives restarts and costs no extra JSON.
 
 ```
 ▤ the harbour board

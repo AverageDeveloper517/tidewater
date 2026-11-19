@@ -2,9 +2,29 @@
   "name": "tidewater",
   "version": "1.0.0",
   "private": true,
-  "description": "Tidewater - a dockside economy bot for Discord. Real markets, real weather, zero API keys.",
+  "description": "Tidewater - a dockside economy bot for Discord. Real markets, real weather, real tides, zero API keys.",
   "type": "module",
   "main": "src/index.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AverageDeveloper517/tidewater.git"
+  },
+  "homepage": "https://github.com/AverageDeveloper517/tidewater#readme",
+  "bugs": {
+    "url": "https://github.com/AverageDeveloper517/tidewater/issues"
+  },
+  "keywords": [
+    "discord",
+    "discord-bot",
+    "discord-js",
+    "economy-bot",
+    "tides",
+    "weather",
+    "coingecko",
+    "open-meteo",
+    "self-hosted"
+  ],
   "engines": {
     "node": ">=18.17.0"
   },
@@ -13,6 +33,7 @@
     "dev": "node --watch src/index.js",
     "deploy": "node src/deploy-commands.js",
     "test": "node --test",
+    "smoke": "node scripts/smoke-live.js",
     "emojis": "node src/tools/upload-emojis.js"
   },
   "dependencies": {
