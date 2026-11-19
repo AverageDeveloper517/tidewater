@@ -25,6 +25,7 @@ feed. A complete Discord economy bot you can self-host in about five minutes.
 - [What it looks like](#what-it-looks-like)
 - [Why it is not another daily/work/beg bot](#why-it-is-not-another-dailyworkbeg-bot)
 - [Quick start](#quick-start)
+- [Your data and backups](#your-data-and-backups)
 - [Bot setup: scopes, intents, permissions](#bot-setup-scopes-intents-permissions)
 - [The loop](#the-loop)
 - [Commands](#commands)
@@ -114,7 +115,7 @@ resets in 6 hours · same board for everyone in this server
 | one global high-score | leaderboards scoped to the server they are asked from |
 | generic collectibles | PokeAPI, 1025 entries, duplicates pay a bounty |
 | trivia hardcoded once | OpenTDB questions, with a local bank when it is down |
-| needs a database | one JSON file, atomic writes |
+| needs a database server | one JSON file, atomic writes, rotating backups |
 
 Every one of those external calls has a fallback. If a feed dies the bot keeps running on the last
 good quote or a local table, and it says so in the footer instead of pretending.
@@ -134,6 +135,39 @@ Written for Node 18.17+ (built and tested on Node 24, `.nvmrc` pins 22).
 
 If you have not created the Discord application yet, do
 [Bot setup](#bot-setup-scopes-intents-permissions) first.
+
+---
+
+## Your data and backups
+
+There is no database server to install. Every player, guild setting and the last good market quote
+live in one file: `data/store.json`. It is written atomically (temp file + rename), so a crash in
+the middle of a write cannot truncate it.
+
+One file is also one point of failure, so the store snapshots itself:
+
+- a backup lands in `data/backups/` every 30 minutes, but only when something changed
+- one more snapshot is written on a clean shutdown (`SIGINT` / `SIGTERM`)
+- the newest 96 snapshots are kept (two days at the default cadence); older files are pruned
+- snapshots use the same atomic write, so a backup cannot be half-written either
+
+Take one now, list them, or restore one:
+
+```bash
+npm run backup
+npm run restore                  # list snapshots, newest first
+npm run restore -- store-2026-11-19T23-55-00-123Z-001.json
+```
+
+Restoring first copies the current save aside as `store-pre-restore-<timestamp>.json`, then replaces
+`data/store.json`. **Stop the bot before restoring**, and start it again afterwards.
+
+If the save is ever unreadable, the bot refuses to boot instead of silently starting empty - the
+error names the file and points here. Restore a snapshot and start again. Backing up the whole
+`data/` directory is enough to move the bot to another machine; in Docker, mount it on a volume.
+
+Tune the cadence with `BACKUP_EVERY_MIN` (default `30`; `0` turns the timer off, manual backups
+still work) and `BACKUP_KEEP` (default `96`).
 
 ---
 
@@ -454,7 +488,7 @@ Eco bot/
 │     └─ upload-emojis.js      push PNGs to application emojis
 ├─ test/                       ten suites, no network
 ├─ assets/emoji/               drop art here, `npm run emojis`
-├─ data/                       store.json at runtime
+├─ data/                       store.json + backups/ at runtime
 ├─ Dockerfile · .dockerignore · ecosystem.config.cjs · .nvmrc
 ├─ .env.example
 └─ package.json
@@ -496,7 +530,8 @@ A player record:
 
 Writes go through a per-user promise queue, so two commands landing at the same millisecond cannot
 double-spend a wallet. The store writes to a temp file and renames it, so a crash mid-write cannot
-truncate the save.
+truncate the save. Snapshots, rotation and restore are covered in
+[Your data and backups](#your-data-and-backups).
 
 The contract board is deliberately not in this file. It is rebuilt from
 `hash(dayKey:guildId)`, so there is one source of truth and no stale guild rows to migrate.
@@ -510,6 +545,8 @@ npm start                        # bare node
 npm run dev                      # node --watch
 npm run deploy                   # register or update slash commands
 npm test                         # node --test, no network required
+npm run backup                   # write a snapshot right now
+npm run restore                  # list snapshots (or pass one to restore)
 npm run emojis                   # upload custom emoji art
 docker build -t tidewater . && docker run --env-file .env tidewater
 pm2 start ecosystem.config.cjs   # pm2 logs tidewater
@@ -523,6 +560,8 @@ Environment:
 | `GUILD_ID` | recommended | register commands in one guild instantly |
 | `LOG_CHANNEL_ID` | optional | channel that receives a line per command |
 | `RATE_LIMIT` | optional | commands per user per 10s, default 8 |
+| `BACKUP_EVERY_MIN` | optional | minutes between automatic snapshots, default 30; `0` disables the timer |
+| `BACKUP_KEEP` | optional | snapshots to keep, default 96 |
 
 Operational notes:
 
@@ -533,7 +572,9 @@ Operational notes:
   recovery is quick
 - contract boards roll over at 00:00 UTC; no cron job, the date is part of the seed
 - the ticker posts every 6 hours to the channel set in `/settings`, and skips degraded boards
-- keep `data/store.json` out of git - already in `.gitignore`
+- the store snapshots itself every 30 minutes when changed, plus on a clean shutdown, and keeps 96
+  files in `data/backups/`; see [Your data and backups](#your-data-and-backups)
+- keep `data/` out of git - the saves and snapshots are already in `.gitignore`
 
 ---
 
@@ -562,6 +603,7 @@ npm test
 
 ```
 test/economy.test.js   level curve, credit/debit guards, net worth, per-user serialisation, achievements, guild marks
+test/store.test.js     atomic writes, snapshot rotation, timer backups, damaged-save refusal
 test/market.test.js    live pricing, dead feed fallback, last-good persistence, fee, max-affordable buys, daily drift
 test/season.test.js    month-to-season mapping, crop multipliers, year-round variance
 test/moon.test.js      known new/full moons, synodic cycle, illumination, spring/neap, next phase
@@ -573,7 +615,7 @@ test/weather.test.js   WMO buckets, crop affinity, swell buckets, outlook and ba
 test/trivia.test.js    entity decoding, shuffle, remote and local question paths, formatting
 ```
 
-73 tests across ten suites, all offline.
+78 tests across eleven suites, all offline.
 
 Everything is injected - services accept `fetchJson`, so the suites run offline and deterministic.
 

@@ -61,7 +61,10 @@ async function main() {
   client.config = config;
   client.guard = createGuard({ config });
   client.startedAt = Date.now();
-  client.store = await createStore(resolve('data/store.json'));
+  client.store = await createStore(resolve('data/store.json'), {
+    backupEveryMs: config.backupEveryMin * 60_000,
+    backupKeep: config.backupKeep
+  });
 
   client.settings = createSettings(client.store);
   client.economy = createEconomy({ store: client.store });
