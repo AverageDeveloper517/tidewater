@@ -129,6 +129,40 @@ test('a live forecast carries the three-hour barometer trend', async () => {
   assert.equal(wx.glass.storm, false);
 });
 
+test('the barometer has pre-midnight hours to compare against', async () => {
+  const hour = 3_600_000;
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 24 * hour).toISOString().slice(0, 10);
+  const start = Math.floor((Date.now() - 24 * hour) / hour) * hour;
+  const times = Array.from({ length: 48 }, (_, i) =>
+    new Date(start + i * hour).toISOString().slice(0, 16)
+  );
+  const pressures = Array.from({ length: 48 }, (_, i) => 1000 + i * 0.1);
+
+  let seen = '';
+  const weather = createWeather({
+    logger,
+    fetchJson: async (url) => {
+      seen = url;
+      return {
+        current: { temperature_2m: 12, weather_code: 2, wind_speed_10m: 10, surface_pressure: 1004 },
+        hourly: { time: times, surface_pressure: pressures },
+        daily: {
+          time: [yesterday, today],
+          sunrise: [`${yesterday}T06:00`, `${today}T06:00`],
+          sunset: [`${yesterday}T18:00`, `${today}T18:00`],
+          daylight_duration: [43200, 43200]
+        }
+      };
+    }
+  });
+
+  const wx = await weather.forecast(port);
+  assert.match(seen, /past_days=1/);
+  assert.equal(wx.sunrise, Date.parse(`${today}T06:00Z`), 'sun times come from today, not yesterday');
+  assert.notEqual(wx.glass.key, 'unknown', 'a delta exists even just after 00:00 UTC');
+});
+
 test('geocode returns null when nothing matches', async () => {
   const weather = createWeather({ logger, fetchJson: async () => ({ results: [] }) });
   assert.equal(await weather.geocode('nowhere'), null);

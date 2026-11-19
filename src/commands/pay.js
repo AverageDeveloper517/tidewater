@@ -41,18 +41,36 @@ export default {
       });
     }
 
-    await economy.update(interaction.user.id, (p) => debit(p, amount));
+    // Debit first and trust the committed result, not the snapshot above. If a
+    // concurrent fill emptied the wallet, stop here instead of minting shells.
+    const take = await economy.update(interaction.user.id, (p) => {
+      if (!debit(p, amount)) return { ok: false };
+      return { ok: true };
+    });
+
+    if (!take.result?.ok) {
+      return reply({
+        embeds: [
+          card({
+            title: 'short',
+            description: `the wallet moved before the transfer. you have ${shells(take.player?.wallet ?? player.wallet)}.`,
+            color: DANGER
+          })
+        ]
+      });
+    }
+
     const { result, fresh, player: afterTarget } = await economy.update(target.id, (p) => {
       credit(p, amount);
       return p.wallet;
     });
-    const sender = economy.get(interaction.user.id);
+    const senderWallet = take.player?.wallet ?? player.wallet - amount;
 
     return reply({
       embeds: [
         card({
           title: 'transfer cleared',
-          description: `${signed(amount)} → **${target.username}**\n\nyour wallet: ${shells(sender?.wallet ?? player.wallet - amount)}\ntheir wallet: ${shells(afterTarget?.wallet ?? result)}`,
+          description: `${signed(amount)} → **${target.username}**\n\nyour wallet: ${shells(senderWallet)}\ntheir wallet: ${shells(afterTarget?.wallet ?? result)}`,
           color: OK,
           footer: fresh.length ? `${fresh.map((a) => a.name).join(', ')} unlocked for them` : 'Tidewater'
         })

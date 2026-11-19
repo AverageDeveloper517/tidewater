@@ -562,18 +562,18 @@ npm test
 
 ```
 test/economy.test.js   level curve, credit/debit guards, net worth, per-user serialisation, achievements, guild marks
-test/market.test.js    live pricing, dead feed fallback, last-good persistence, fee and daily drift
+test/market.test.js    live pricing, dead feed fallback, last-good persistence, fee, max-affordable buys, daily drift
 test/season.test.js    month-to-season mapping, crop multipliers, year-round variance
 test/moon.test.js      known new/full moons, synodic cycle, illumination, spring/neap, next phase
 test/tide.test.js      UTC parsing, extremes, interpolation, range, bite mood, lunar fallback
 test/contracts.test.js determinism, guild/day separation, quantities, margin, expiry, manifests
-test/commands.test.js  /tide, /almanac, /contracts and an offline /fish through the fallbacks
+test/commands.test.js  /tide, /almanac, /contracts, offline /fish, and double-click races on /work, /daily, /bank, /pay
 test/water.test.js     species bands, sea bands, catch weighting, glass thresholds
 test/weather.test.js   WMO buckets, crop affinity, swell buckets, outlook and barometer parsing
 test/trivia.test.js    entity decoding, shuffle, remote and local question paths, formatting
 ```
 
-67 tests across ten suites, all offline.
+73 tests across ten suites, all offline.
 
 Everything is injected - services accept `fetchJson`, so the suites run offline and deterministic.
 

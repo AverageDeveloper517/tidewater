@@ -58,25 +58,46 @@ export default {
     }
 
     const { result, player: after } = await economy.update(interaction.user.id, (p) => {
+      // Recompute against the committed wallet: a fill can land between the
+      // snapshot above and this update, and a negative balance is not a vault.
+      const liveAvailable = action === 'deposit' ? p.wallet : p.bank;
+      const liveRoom = Math.max(0, p.bankCap - p.bank);
+      const liveAmount =
+        raw === 'all' || raw === 'max'
+          ? action === 'deposit'
+            ? Math.min(liveAvailable, liveRoom)
+            : liveAvailable
+          : amount;
+
+      if (!Number.isFinite(liveAmount) || liveAmount <= 0) return { ok: false };
+      if (action === 'deposit' && liveAmount > liveRoom) return { ok: false };
+      if (liveAmount > liveAvailable) return { ok: false };
+
       if (action === 'deposit') {
-        p.wallet -= amount;
-        p.bank += amount;
+        p.wallet -= liveAmount;
+        p.bank += liveAmount;
       } else {
-        p.bank -= amount;
-        p.wallet += amount;
+        p.bank -= liveAmount;
+        p.wallet += liveAmount;
       }
-      return { wallet: p.wallet, bank: p.bank };
+      return { ok: true, wallet: p.wallet, bank: p.bank, amount: liveAmount, cap: p.bankCap };
     });
+
+    if (!result?.ok) {
+      return reply({
+        embeds: [card({ title: 'the vault moved', description: 'try `/bank` again with the current balance.', color: WARN })]
+      });
+    }
 
     return reply({
       embeds: [
         card({
           title: action === 'deposit' ? 'vault sealed' : 'vault opened',
-          description: `${action === 'deposit' ? 'in' : 'out'}: ${shells(amount)}`,
+          description: `${action === 'deposit' ? 'in' : 'out'}: ${shells(result.amount)}`,
           color: OK,
           fields: [
             { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
-            { name: 'bank', value: `${shells(result.bank)} / ${num(player.bankCap)}`, inline: true }
+            { name: 'bank', value: `${shells(result.bank)} / ${num(result.cap)}`, inline: true }
           ]
         })
       ]

@@ -10,6 +10,10 @@ import tideCommand from '../src/commands/tide.js';
 import almanacCommand from '../src/commands/almanac.js';
 import contractsCommand from '../src/commands/contracts.js';
 import fishCommand from '../src/commands/fish.js';
+import workCommand from '../src/commands/work.js';
+import dailyCommand from '../src/commands/daily.js';
+import bankCommand from '../src/commands/bank.js';
+import payCommand from '../src/commands/pay.js';
 
 const PORT = { name: 'Lisbon', country: 'PT', lat: 38.72, lon: -9.14 };
 
@@ -42,7 +46,7 @@ async function harness() {
 
   await economy.create('u1', { name: 'tester', port: PORT });
 
-  const run = async (command, { sub = null, slot = null } = {}) => {
+  const run = async (command, { sub = null, slot = null, amount = null, user = null, strings = {} } = {}) => {
     const payloads = [];
     const reply = async (payload) => {
       payloads.push(payload);
@@ -50,8 +54,9 @@ async function harness() {
     const interaction = { user: { id: 'u1' }, guildId: 'g1', id: 'i1' };
     const options = {
       getSubcommand: () => sub,
-      getInteger: () => slot,
-      getString: () => null
+      getInteger: (name) => (name === 'amount' ? amount : slot),
+      getString: (name) => strings[name] ?? null,
+      getUser: () => user
     };
 
     await command.run({ interaction, options, reply, economy, market, weather, tide });
@@ -86,6 +91,11 @@ test('/almanac combines outlook, tide, moon and planting advice', async () => {
   const names = data.fields.map((f) => f.name);
   assert.deepEqual(names, ['six days', 'water', 'bait', 'planting, best day in four', 'warnings']);
   assert.ok(data.fields[0].value.split('\n').length >= 5);
+  assert.equal(
+    data.fields.find((f) => f.name === 'warnings').value,
+    'outlook down - no advisories to read',
+    'a dead outlook must not claim there are no warnings'
+  );
 });
 
 test('/contracts view shows three jobs and take locks one in', async () => {
@@ -171,4 +181,61 @@ test('/fish lands a good offline and says the feeds are down', async () => {
   assert.ok(names.includes('water'));
   assert.ok(names.includes('glass'));
   assert.equal(out.data.fields.find((field) => field.name === 'glass').value, 'no reading');
+});
+
+test('two work clicks cannot both pay', async () => {
+  const h = await harness();
+  const [a, b] = await Promise.all([h.run(workCommand), h.run(workCommand)]);
+  const titles = [a.data.title ?? '', b.data.title ?? ''];
+
+  assert.equal(h.economy.get('u1').stats.work, 1, 'one shift stamped');
+  assert.equal(titles.filter((title) => /still on shift/.test(title)).length, 1);
+});
+
+test('two daily clicks cannot both collect', async () => {
+  const h = await harness();
+  const before = h.economy.get('u1').wallet;
+  const [a, b] = await Promise.all([h.run(dailyCommand), h.run(dailyCommand)]);
+  const titles = [a.data.title ?? '', b.data.title ?? ''];
+  const player = h.economy.get('u1');
+
+  assert.equal(player.streak, 1);
+  assert.equal(titles.filter((title) => title === 'already collected').length, 1);
+  assert.ok(player.wallet - before < 400, 'one payout only');
+});
+
+test('a deposit cannot empty a wallet that was already spent', async () => {
+  const h = await harness();
+  const spend = h.economy.update('u1', (p) => {
+    p.wallet = 0;
+  });
+  const out = await h.run(bankCommand, {
+    sub: 'deposit',
+    strings: { action: 'deposit', amount: '100' }
+  });
+  await spend;
+
+  const player = h.economy.get('u1');
+  assert.equal(player.wallet, 0);
+  assert.equal(player.bank, 0);
+  assert.equal(out.data.title, 'the vault moved');
+});
+
+test('a transfer cannot credit a target when the sender was spent elsewhere', async () => {
+  const h = await harness();
+  await h.economy.create('u2', { name: 'target', port: PORT });
+  const before = h.economy.get('u2').wallet;
+
+  const spend = h.economy.update('u1', (p) => {
+    p.wallet = 0;
+  });
+  const out = await h.run(payCommand, {
+    amount: 50,
+    user: { id: 'u2', username: 'target', bot: false }
+  });
+  await spend;
+
+  assert.equal(h.economy.get('u1').wallet, 0);
+  assert.equal(h.economy.get('u2').wallet, before, 'no shells minted');
+  assert.equal(out.data.title, 'short');
 });

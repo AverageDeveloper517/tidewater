@@ -17,28 +17,20 @@ export default {
     if (await requireProfile(reply, player)) return;
 
     const now = Date.now();
-    const since = now - player.lastWork;
-
-    if (player.lastWork && since < COOLDOWN) {
-      return reply({
-        embeds: [
-          card({
-            title: 'still on shift',
-            description: `the harbourmaster lets you go in **${duration(COOLDOWN - since)}**.`,
-            color: WARN
-          })
-        ]
-      });
-    }
-
     const wx = await weather.forecast(player.port);
     const stormPay = wx.bucket === 'storm' ? 1.35 : wx.bucket === 'rain' ? 1.12 : 1;
     const nightPay = wx.isNight ? 1.15 : 1;
-    const levelBonus = Math.floor(Math.sqrt(player.xp) / 2);
-    const base = 40 + levelBonus + Math.floor(Math.random() * 31);
-    const pay = Math.round(base * stormPay * nightPay);
 
+    // Gate the shift inside the queue: two interactions arriving together must
+    // not both stamp lastWork and both pay out.
     const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
+      const since = now - p.lastWork;
+      if (p.lastWork && since < COOLDOWN) return { ok: false, wait: COOLDOWN - since };
+
+      const levelBonus = Math.floor(Math.sqrt(p.xp) / 2);
+      const base = 40 + levelBonus + Math.floor(Math.random() * 31);
+      const pay = Math.round(base * stormPay * nightPay);
+
       p.lastWork = now;
       p.stats.work += 1;
       credit(p, pay);
@@ -48,8 +40,20 @@ export default {
         p.goods.kelp = (p.goods.kelp ?? 0) + 1;
         extra = 'kelp';
       }
-      return { pay, job: pick(JOBS), extra, stormPay, nightPay, wallet: p.wallet };
+      return { ok: true, pay, job: pick(JOBS), extra, stormPay, nightPay, wallet: p.wallet };
     });
+
+    if (!result?.ok) {
+      return reply({
+        embeds: [
+          card({
+            title: 'still on shift',
+            description: `the harbourmaster lets you go in **${duration(result.wait)}**.`,
+            color: WARN
+          })
+        ]
+      });
+    }
 
     const lines = [
       `you ${result.job}.`,
@@ -66,7 +70,7 @@ export default {
           color: GOLD,
           fields: [
             { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
-            { name: 'shifts', value: String(player.stats.work + 1), inline: true },
+            { name: 'shifts', value: String(after?.stats?.work ?? player.stats.work + 1), inline: true },
             { name: 'light', value: wx.isNight ? 'after sunset' : 'daylight', inline: true }
           ]
         })

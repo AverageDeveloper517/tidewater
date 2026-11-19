@@ -62,6 +62,13 @@ function daylightFrom(sunrise, sunset) {
   return Math.max(0, sunset - sunrise);
 }
 
+/** The call asks for one past day, so the daily arrays start yesterday; pick today's row. */
+function dayIndex(daily, now) {
+  const day = new Date(now).toISOString().slice(0, 10);
+  const at = (daily?.time ?? []).indexOf(day);
+  return at >= 0 ? at : 0;
+}
+
 const numOrNull = (value) => {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -180,16 +187,17 @@ export function createWeather({ fetchJson = getJson, logger } = {}) {
         `https://api.open-meteo.com/v1/forecast?latitude=${port.lat}&longitude=${port.lon}` +
         '&current=temperature_2m,weather_code,wind_speed_10m,surface_pressure' +
         '&hourly=surface_pressure' +
-        '&daily=sunrise,sunset,daylight_duration&forecast_days=1&timezone=UTC';
+        '&daily=sunrise,sunset,daylight_duration&past_days=1&forecast_days=1&timezone=UTC';
 
       try {
         const data = await fetchJson(url, { ttl: 10 * 60_000 });
         const current = data?.current ?? {};
         const bucket = bucketFor(current.weather_code);
-        const sunrise = utc(data?.daily?.sunrise?.[0]);
-        const sunset = utc(data?.daily?.sunset?.[0]);
-        const daylight = numOrNull(data?.daily?.daylight_duration?.[0]);
         const now = Date.now();
+        const di = dayIndex(data?.daily, now);
+        const sunrise = utc(data?.daily?.sunrise?.[di]);
+        const sunset = utc(data?.daily?.sunset?.[di]);
+        const daylight = numOrNull(data?.daily?.daylight_duration?.[di]);
         const isNight = sunrise && sunset ? now < sunrise || now >= sunset : fallbackNight(port, now);
         const delta = pressureDelta(data?.hourly, now);
         const pressure = numOrNull(current.surface_pressure);

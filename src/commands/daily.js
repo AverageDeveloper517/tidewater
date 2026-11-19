@@ -16,31 +16,35 @@ export default {
     if (await requireProfile(reply, player)) return;
 
     const now = Date.now();
-    const since = now - player.lastDaily;
 
-    if (player.lastDaily && since < WAIT) {
+    // The streak and the cooldown are read inside the per-user queue, so two
+    // interactions landing together cannot both collect the day.
+    const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
+      const since = now - p.lastDaily;
+      if (p.lastDaily && since < WAIT) return { ok: false, wait: WAIT - since };
+
+      const streak = p.lastDaily && since < RESET_AFTER ? p.streak + 1 : 1;
+      const base = 120 + Math.min(streak, 30) * 15;
+      const bonus = Math.floor(Math.random() * 40);
+
+      p.streak = streak;
+      p.lastDaily = now;
+      credit(p, base + bonus);
+      addXp(p, 20);
+      return { ok: true, base, bonus, total: base + bonus, streak, wallet: p.wallet };
+    });
+
+    if (!result?.ok) {
       return reply({
         embeds: [
           card({
             title: 'already collected',
-            description: `come back in **${duration(WAIT - since)}**.`,
+            description: `come back in **${duration(result.wait)}**.`,
             color: WARN
           })
         ]
       });
     }
-
-    const streak = player.lastDaily && since < RESET_AFTER ? player.streak + 1 : 1;
-    const base = 120 + Math.min(streak, 30) * 15;
-    const bonus = Math.floor(Math.random() * 40);
-
-    const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
-      p.streak = streak;
-      p.lastDaily = now;
-      credit(p, base + bonus);
-      addXp(p, 20);
-      return { base, bonus, total: base + bonus, streak, wallet: p.wallet };
-    });
 
     const body =
       `${signed(result.total)} landed.\n` +

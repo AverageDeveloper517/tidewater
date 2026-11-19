@@ -37,6 +37,26 @@ export function fee(amount) {
   return Math.max(0, Math.round(Number(amount) * TRADE_FEE));
 }
 
+const allIn = (price, qty) => {
+  const gross = Math.round(price * qty);
+  return gross + fee(gross);
+};
+
+/**
+ * The largest buy whose rounded gross plus rounded fee actually fits the wallet.
+ * Dividing by `price * 1.005` can over-buy by a shell when both rounds land up,
+ * so start from the fee-adjusted quotient and walk to the true edge. Rounding
+ * down can also make the next unit free, so step up while it still fits.
+ */
+export function maxAffordable(price, wallet) {
+  if (!Number.isFinite(price) || !Number.isFinite(wallet) || price <= 0 || wallet <= 0) return 0;
+
+  let qty = Math.max(0, Math.floor(wallet / (price * (1 + TRADE_FEE))));
+  while (qty > 0 && allIn(price, qty) > wallet) qty -= 1;
+  while (allIn(price, qty + 1) <= wallet) qty += 1;
+  return qty;
+}
+
 export function createMarket({ store, logger, fetchJson = getJson, ttlMs = 120_000 }) {
   let cached = null;
   let inflight = null;

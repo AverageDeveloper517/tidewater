@@ -3,7 +3,7 @@ import { card, money, num, shells, OK, DANGER, WARN } from '../lib/theme.js';
 import { requireProfile, unlockedText } from '../lib/flow.js';
 import { credit, debit } from '../services/economy.js';
 import { INSTRUMENTS } from '../data/instruments.js';
-import { fee } from '../services/market.js';
+import { fee, maxAffordable } from '../services/market.js';
 
 const choices = INSTRUMENTS.map((i) => ({ name: `${i.name} (${i.key})`, value: i.key }));
 
@@ -50,7 +50,7 @@ export default {
     let qty;
 
     if (raw === 'all' || raw === 'max') {
-      qty = action === 'buy' ? Math.floor(player.wallet / (price * 1.005)) : owned;
+      qty = action === 'buy' ? maxAffordable(price, player.wallet) : owned;
     } else {
       qty = Number.parseInt(raw, 10);
     }

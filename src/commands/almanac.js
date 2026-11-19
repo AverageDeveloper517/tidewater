@@ -155,7 +155,11 @@ export default {
             { name: 'planting, best day in four', value: planting || 'no forecast to plan against' },
             {
               name: 'warnings',
-              value: advisories.slice(0, 4).join('\n') || 'none in the next six days'
+              value: advisories.length
+                ? advisories.slice(0, 4).join('\n')
+                : outlook.degraded
+                  ? 'outlook down - no advisories to read'
+                  : 'none in the next six days'
             }
           ],
           footer: degraded

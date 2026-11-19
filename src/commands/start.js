@@ -52,10 +52,22 @@ export default {
       });
     }
 
-    const { player } = await economy.create(interaction.user.id, {
+    const { created, player } = await economy.create(interaction.user.id, {
       name: interaction.user.username,
       port
     });
+
+    if (!created) {
+      return reply({
+        embeds: [
+          card({
+            title: 'already docked',
+            description: `your port is **${player.port?.name ?? 'unknown'}** - the dock opened on another click.`,
+            color: ACCENT
+          })
+        ]
+      });
+    }
 
     const wx = await weather.forecast(port);
     const where = [port.name, port.region, port.country].filter(Boolean).join(', ');

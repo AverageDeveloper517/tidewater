@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createMarket, fee, goodPrice, priceInstrument } from '../src/services/market.js';
+import { createMarket, fee, goodPrice, maxAffordable, priceInstrument } from '../src/services/market.js';
 import { INSTRUMENTS } from '../src/data/instruments.js';
 
 function memoryStore() {
@@ -94,4 +94,22 @@ test('fee and goods pricing are deterministic per day', () => {
   assert.ok(a > 0);
   assert.ok(goodPrice('pearl', 2) > goodPrice('pearl', 1));
   assert.equal(goodPrice('nope', 1), 0);
+});
+
+test('buy all never quotes a fill the wallet cannot cover', () => {
+  for (const price of [0.63, 3.46, 82.4, 110.14, 2881.43]) {
+    for (let wallet = 1; wallet <= 20_000; wallet += 13) {
+      const qty = maxAffordable(price, wallet);
+      const gross = Math.round(price * qty);
+      assert.ok(gross + fee(gross) <= wallet, `${qty} @ ${price} fits ${wallet}`);
+
+      if (qty > 0) {
+        const next = Math.round(price * (qty + 1));
+        assert.ok(next + fee(next) > wallet, `${qty + 1} @ ${price} must not fit ${wallet}`);
+      }
+    }
+  }
+
+  // the regression: the old formula quoted 4,075 units for 14,170 shells
+  assert.equal(maxAffordable(3.46, 14_170), 4_074);
 });
