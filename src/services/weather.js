@@ -43,6 +43,31 @@ export function affinity(bucket, crop) {
   return WEATHER_MULT.neutral;
 }
 
+/** Open-Meteo returns bare local stamps; timezone=UTC means they are UTC. */
+function utc(value) {
+  if (typeof value !== 'string') return null;
+  const hasZone = /[zZ]$/.test(value) || /[+-]\d\d:?\d\d$/.test(value);
+  const stamp = Date.parse(hasZone ? value : `${value}Z`);
+  return Number.isFinite(stamp) ? stamp : null;
+}
+
+/** Rough local night when the sun feed is down: longitude gives solar time. */
+function fallbackNight(port, now) {
+  const solar = ((now / 3_600_000 + (port?.lon ?? 0) / 15) % 24 + 24) % 24;
+  return solar < 6 || solar >= 20;
+}
+
+function daylightFrom(sunrise, sunset) {
+  if (!sunrise || !sunset) return null;
+  return Math.max(0, sunset - sunrise);
+}
+
+const numOrNull = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
 export function waveMood(height) {
   const h = Number(height) || 0;
   if (h < 0.4) return { key: 'glass', label: 'glass calm', rare: 0.9, junk: 0.7 };
@@ -70,28 +95,136 @@ export function createWeather({ fetchJson = getJson, logger } = {}) {
     },
 
     async forecast(port) {
-      if (!port) return { bucket: 'cloud', label: LABEL.cloud, icon: ICON.cloud, temp: null, wind: null, degraded: true };
+      if (!port) {
+        return {
+          bucket: 'cloud',
+          label: LABEL.cloud,
+          icon: ICON.cloud,
+          temp: null,
+          wind: null,
+          sunrise: null,
+          sunset: null,
+          daylightMs: null,
+          isNight: false,
+          degraded: true
+        };
+      }
       const url =
         `https://api.open-meteo.com/v1/forecast?latitude=${port.lat}&longitude=${port.lon}` +
-        '&current=temperature_2m,weather_code,wind_speed_10m&timezone=UTC';
+        '&current=temperature_2m,weather_code,wind_speed_10m' +
+        '&daily=sunrise,sunset,daylight_duration&forecast_days=1&timezone=UTC';
 
       try {
         const data = await fetchJson(url, { ttl: 10 * 60_000 });
         const current = data?.current ?? {};
         const bucket = bucketFor(current.weather_code);
+        const sunrise = utc(data?.daily?.sunrise?.[0]);
+        const sunset = utc(data?.daily?.sunset?.[0]);
+        const daylight = numOrNull(data?.daily?.daylight_duration?.[0]);
+        const now = Date.now();
+        const isNight = sunrise && sunset ? now < sunrise || now >= sunset : fallbackNight(port, now);
         return {
           bucket,
           label: LABEL[bucket],
           icon: ICON[bucket],
           temp: typeof current.temperature_2m === 'number' ? Math.round(current.temperature_2m) : null,
           wind: typeof current.wind_speed_10m === 'number' ? Math.round(current.wind_speed_10m) : null,
+          sunrise,
+          sunset,
+          daylightMs: daylight != null ? Math.round(daylight * 1000) : daylightFrom(sunrise, sunset),
+          isNight,
           degraded: false
         };
       } catch (err) {
         logger?.warn('weather: forecast fallback,', err.message);
         const rng = seeded(`${dayKey()}:${port.name}:wx`);
         const bucket = BUCKETS[Math.floor(rng() * 5)]; // never fake a storm
-        return { bucket, label: LABEL[bucket], icon: ICON[bucket], temp: null, wind: null, degraded: true };
+        return {
+          bucket,
+          label: LABEL[bucket],
+          icon: ICON[bucket],
+          temp: null,
+          wind: null,
+          sunrise: null,
+          sunset: null,
+          daylightMs: null,
+          isNight: fallbackNight(port, Date.now()),
+          degraded: true
+        };
+      }
+    },
+
+    /** Six-day outlook. Drives the almanac's planting window. */
+    async daily(port) {
+      if (!port) return { days: [], degraded: true };
+
+      const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${port.lat}&longitude=${port.lon}` +
+        '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,' +
+        'precipitation_probability_max,wind_speed_10m_max,uv_index_max,sunrise,sunset,daylight_duration' +
+        '&forecast_days=6&timezone=UTC';
+
+      try {
+        const data = await fetchJson(url, { ttl: 30 * 60_000 });
+        const d = data?.daily ?? {};
+        const times = d.time ?? [];
+        if (!times.length) throw new Error('no outlook days');
+
+        const days = times.map((date, i) => {
+          const bucket = bucketFor(d.weather_code?.[i]);
+          const sunrise = utc(d.sunrise?.[i]);
+          const sunset = utc(d.sunset?.[i]);
+          const tmax = numOrNull(d.temperature_2m_max?.[i]);
+          const tmin = numOrNull(d.temperature_2m_min?.[i]);
+          const precip = numOrNull(d.precipitation_sum?.[i]);
+          const chance = numOrNull(d.precipitation_probability_max?.[i]);
+          const wind = numOrNull(d.wind_speed_10m_max?.[i]);
+          const uv = numOrNull(d.uv_index_max?.[i]);
+          const daylight = numOrNull(d.daylight_duration?.[i]);
+          return {
+            date,
+            bucket,
+            label: LABEL[bucket],
+            icon: ICON[bucket],
+            tmax: tmax == null ? null : Math.round(tmax),
+            tmin: tmin == null ? null : Math.round(tmin),
+            precip,
+            precipChance: chance == null ? null : Math.round(chance),
+            wind: wind == null ? null : Math.round(wind),
+            uv: uv == null ? null : Math.round(uv * 10) / 10,
+            sunrise,
+            sunset,
+            daylightMs: daylight != null ? Math.round(daylight * 1000) : daylightFrom(sunrise, sunset)
+          };
+        });
+
+        return { days, degraded: false };
+      } catch (err) {
+        logger?.warn('weather: outlook fallback,', err.message);
+        const rng = seeded(`${dayKey()}:${port.name}:outlook`);
+        const safe = ['clear', 'cloud', 'fog', 'rain'];
+        const today = new Date();
+        const base = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+        const days = Array.from({ length: 6 }, (_, i) => {
+          const bucket = safe[Math.floor(rng() * safe.length)];
+          const date = new Date(base + i * 86_400_000).toISOString().slice(0, 10);
+          return {
+            date,
+            bucket,
+            label: LABEL[bucket],
+            icon: ICON[bucket],
+            tmax: null,
+            tmin: null,
+            precip: null,
+            precipChance: null,
+            wind: null,
+            uv: null,
+            sunrise: null,
+            sunset: null,
+            daylightMs: null
+          };
+        });
+        return { days, degraded: true };
       }
     },
 

@@ -56,6 +56,31 @@ export function weighted(list, random = Math.random) {
 
 export const dayKey = (date = new Date()) => date.toISOString().slice(0, 10);
 
+const SPARK = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
+/** A compact shape for a series - used for the 24h tide curve. */
+export function sparkline(values, width = 24) {
+  const clean = (values ?? []).filter((n) => Number.isFinite(Number(n))).map(Number);
+  if (clean.length < 2) return '';
+
+  const count = Math.min(width, clean.length);
+  const sampled = Array.from({ length: count }, (_, i) => {
+    const index = count === 1 ? 0 : Math.round((i * (clean.length - 1)) / (count - 1));
+    return clean[index];
+  });
+
+  const min = Math.min(...sampled);
+  const max = Math.max(...sampled);
+  if (max - min < 0.005) return SPARK[3].repeat(count);
+
+  return sampled
+    .map((value) => SPARK[Math.min(7, Math.max(0, Math.floor(((value - min) / (max - min)) * 7.999)))])
+    .join('');
+}
+
+/** Discord timestamp markup - rendered in the reader's own timezone. */
+export const timeTag = (ms, style = 't') => `<t:${Math.floor(Number(ms) / 1000)}:${style}>`;
+
 export const relative = (ms) => {
   const abs = Math.abs(ms);
   if (abs < 60_000) return `${Math.max(1, Math.round(abs / 1000))}s`;

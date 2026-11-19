@@ -53,6 +53,7 @@ export async function execute({ client, interaction, logger }) {
       economy: client.economy,
       market: client.market,
       weather: client.weather,
+      tide: client.tide,
       dex: client.dex,
       trivia: client.trivia
     });

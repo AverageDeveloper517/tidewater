@@ -37,7 +37,9 @@ export function blankPlayer({ id, name }) {
       gambled: 0,
       won: 0,
       spins: 0,
-      jackpots: 0
+      jackpots: 0,
+      contracts: 0,
+      tides: 0
     },
     achievements: [],
     createdAt: Date.now()

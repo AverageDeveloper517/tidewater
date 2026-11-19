@@ -48,7 +48,7 @@ export default {
             },
             {
               name: 'games',
-              value: `${num(player.stats.triviaRight)} right answers\n${num(player.stats.spins)} spins\n${num(player.stats.trades)} trades`,
+              value: `${num(player.stats.triviaRight)} right answers\n${num(player.stats.spins)} spins\n${num(player.stats.trades)} trades\n${num(player.stats.contracts ?? 0)} contracts`,
               inline: true
             },
             {

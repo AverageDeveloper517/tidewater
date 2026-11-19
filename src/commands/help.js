@@ -13,9 +13,10 @@ const PAGES = [
       '`/profile` — public card: level, streak, collection\n' +
       '`/balance` — wallet, bank, portfolio\n' +
       '`/daily` — streak-based payout, resets after two missed days\n' +
-      '`/work` — 30 minute shift, pays more in bad weather\n' +
+      '`/work` — 30 minute shift, pays more in bad weather and after dark\n' +
       '`/pay` — send shells to another dock\n' +
       '`/bank` — deposit or withdraw; the vault caps it\n' +
+      '`/contracts` — three daily delivery jobs from the harbour board\n' +
       '`/achievements` — what you have unlocked and what is left'
   },
   {
@@ -33,11 +34,13 @@ const PAGES = [
     title: 'the water',
     body:
       '`/fish` — swell height changes what bites\n' +
+      '`/tide` — real high and low water, and how the tide changes the bite\n' +
+      '`/almanac` — six-day outlook, moon, tide and the best crop to plant\n' +
       '`/garden plant` — crops, real weather at your port\n' +
       '`/garden harvest` — weather and season multiply the yield\n' +
       '`/garden view` — what is growing and the current sky\n' +
       '`/catch` — a random pokedex entry, duplicates pay a bounty\n\n' +
-      'the season follows the real calendar. it multiplies every crop differently, so what pays depends on the month.\n\n' +
+      'the season follows the real calendar, the tide follows the real moon, and night water fishes differently. rough water and a rising tide are the good combination.\n\n' +
       `crops: ${Object.values(CROPS)
         .map((c) => `${c.name} (${Math.round(c.growMs / 60000)}m)`)
         .join(', ')}`

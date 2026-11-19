@@ -2,7 +2,9 @@ import { SlashCommandBuilder } from 'discord.js';
 import { card, shells, num, duration, ACCENT, GOLD, OK, WARN } from '../lib/theme.js';
 import { requireProfile, levelInfo } from '../lib/flow.js';
 import { seasonFor } from '../lib/season.js';
+import { moonPhase } from '../lib/moon.js';
 import { CROPS } from '../data/tables.js';
+import { timeTag } from '../lib/util.js';
 
 export default {
   data: new SlashCommandBuilder().setName('dock').setDescription('one card: port, sky, garden, worth'),
@@ -10,12 +12,17 @@ export default {
   ephemeral: true,
   cooldownMs: 2000,
 
-  async run({ interaction, reply, economy, market, weather }) {
+  async run({ interaction, reply, economy, market, weather, tide }) {
     const player = economy.get(interaction.user.id);
     if (await requireProfile(reply, player)) return;
 
-    const [board, wx] = await Promise.all([market.board(), weather.forecast(player.port)]);
+    const [board, wx, t] = await Promise.all([
+      market.board(),
+      weather.forecast(player.port),
+      tide.at(player.port)
+    ]);
     const season = seasonFor();
+    const moon = moonPhase();
     const { level, into, span } = levelInfo(player);
 
     let portfolio = 0;
@@ -71,15 +78,26 @@ export default {
             { name: 'streak', value: `${num(player.streak)} day(s)`, inline: true },
             { name: 'collection', value: `${num(Object.keys(player.catches).length)} / 1025`, inline: true },
             {
+              name: 'tide',
+              value:
+                `${t.trend} ${t.level.toFixed(2)} m · ${t.biteLabel}\n` +
+                (t.extremes[0]
+                  ? `${t.extremes[0].type === 'high' ? '▲' : '▼'} ${timeTag(t.extremes[0].at, 'R')}`
+                  : 'no marks in the window'),
+              inline: true
+            },
+            {
               name: 'cooldowns',
               value: `daily ${dailyLeft > 0 ? duration(dailyLeft) : 'ready'}\nwork ${workLeft > 0 ? duration(workLeft) : 'ready'}`,
               inline: true
             },
             { name: 'next', value: next, inline: true }
           ],
-          footer: `${season.name} pays ${Object.entries(season.crop)
-            .map(([key, mult]) => `${CROPS[key]?.name ?? key} ×${mult.toFixed(2)}`)
-            .join(' · ')}`,
+          footer:
+            `${moon.glyph} ${moon.name} · ${season.name} pays ` +
+            Object.entries(season.crop)
+              .map(([key, mult]) => `${CROPS[key]?.name ?? key} ×${mult.toFixed(2)}`)
+              .join(' · '),
           timestamp: true
         })
       ]

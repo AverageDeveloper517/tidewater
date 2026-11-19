@@ -3,6 +3,7 @@
 //   node scripts/smoke-live.js
 
 import { createWeather } from '../src/services/weather.js';
+import { createTide } from '../src/services/tide.js';
 import { createMarket } from '../src/services/market.js';
 import { createTrivia } from '../src/services/trivia.js';
 import { createDex } from '../src/services/pokedex.js';
@@ -12,6 +13,7 @@ const logger = { info: console.log, ok: console.log, warn: (m, e) => console.war
 const store = { get: () => null, set: () => {} };
 
 const weather = createWeather({ logger });
+const tide = createTide({ logger });
 const market = createMarket({ store, logger, ttlMs: 0 });
 const trivia = createTrivia({ logger });
 const dex = createDex({ logger });
@@ -31,10 +33,20 @@ check('geocode', Boolean(port), port ? `${port.name}, ${port.country} (${port.la
 
 if (port) {
   const wx = await weather.forecast(port);
-  check('forecast', !wx.degraded && wx.bucket, `${wx.bucket} ${wx.temp ?? '?'}C`);
+  check('forecast', !wx.degraded && wx.bucket, `${wx.bucket} ${wx.temp ?? '?'}C, ${wx.isNight ? 'night' : 'day'}`);
 
   const sea = await weather.waves(port);
   check('marine', !sea.degraded && sea.height > 0, `${sea.height}m / ${sea.period}s`);
+
+  const outlook = await weather.daily(port);
+  check('outlook', !outlook.degraded && outlook.days.length >= 5, `${outlook.days.length} days, ${outlook.days[0]?.bucket} first`);
+
+  const t = await tide.at(port);
+  check(
+    'tide',
+    !t.degraded && t.extremes.length > 0,
+    `${t.level}m ${t.trend}, ${t.extremes.length} marks, ${t.tideClass.label}, bite x${t.bite}`
+  );
 }
 
 const board = await market.board({ force: true });

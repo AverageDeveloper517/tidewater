@@ -4,7 +4,6 @@ import { requireProfile, unlockedText } from '../lib/flow.js';
 import { credit, addXp } from '../services/economy.js';
 import { JOBS, FISH } from '../data/tables.js';
 import { pick } from '../lib/util.js';
-import { GLYPH } from '../lib/emoji.js';
 
 const COOLDOWN = 30 * 60_000;
 
@@ -34,9 +33,10 @@ export default {
 
     const wx = await weather.forecast(player.port);
     const stormPay = wx.bucket === 'storm' ? 1.35 : wx.bucket === 'rain' ? 1.12 : 1;
+    const nightPay = wx.isNight ? 1.15 : 1;
     const levelBonus = Math.floor(Math.sqrt(player.xp) / 2);
     const base = 40 + levelBonus + Math.floor(Math.random() * 31);
-    const pay = Math.round(base * stormPay);
+    const pay = Math.round(base * stormPay * nightPay);
 
     const { result, fresh } = await economy.update(interaction.user.id, (p) => {
       p.lastWork = now;
@@ -48,25 +48,26 @@ export default {
         p.goods.kelp = (p.goods.kelp ?? 0) + 1;
         extra = 'kelp';
       }
-      return { pay, job: pick(JOBS), extra, stormPay };
+      return { pay, job: pick(JOBS), extra, stormPay, nightPay, wallet: p.wallet };
     });
 
     const lines = [
       `you ${result.job}.`,
-      `${signed(result.pay)} for the shift${result.stormPay > 1 ? ` **(${Math.round((result.stormPay - 1) * 100)}% weather pay)**` : ''}.`
+      `${signed(result.pay)} for the shift` +
+        `${result.stormPay > 1 || result.nightPay > 1 ? ` **(${[result.stormPay > 1 ? `${Math.round((result.stormPay - 1) * 100)}% weather` : null, result.nightPay > 1 ? '15% night' : null].filter(Boolean).join(' + ')} pay)**` : ''}.`
     ];
     if (result.extra) lines.push(`someone left a bundle of ${FISH[result.extra]?.name ?? 'kelp'} by the gate.`);
 
     return reply({
       embeds: [
         card({
-          title: `${wx.icon} ${wx.label} over ${player.port?.name ?? 'the dock'}`,
+          title: `${wx.icon} ${wx.label} over ${player.port?.name ?? 'the dock'}${wx.isNight ? ' · night shift' : ''}`,
           description: lines.join('\n') + unlockedText(fresh),
           color: GOLD,
           fields: [
-            { name: 'wallet', value: shells(player.wallet + result.pay), inline: true },
+            { name: 'wallet', value: shells(result.wallet), inline: true },
             { name: 'shifts', value: String(player.stats.work + 1), inline: true },
-            { name: 'conditions', value: `${GLYPH.wave} ${wx.label}`, inline: true }
+            { name: 'light', value: wx.isNight ? 'after sunset' : 'daylight', inline: true }
           ]
         })
       ]

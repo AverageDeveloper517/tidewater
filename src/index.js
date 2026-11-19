@@ -13,6 +13,7 @@ import { createSettings } from './services/settings.js';
 import { createEconomy } from './services/economy.js';
 import { createMarket } from './services/market.js';
 import { createWeather } from './services/weather.js';
+import { createTide } from './services/tide.js';
 import { createDex } from './services/pokedex.js';
 import { createTrivia } from './services/trivia.js';
 
@@ -70,6 +71,7 @@ async function main() {
     ttlMs: config.marketTtlMs
   });
   client.weather = createWeather({ logger: logger.child('weather') });
+  client.tide = createTide({ logger: logger.child('tide') });
   client.dex = createDex({ logger: logger.child('dex') });
   client.trivia = createTrivia({ logger: logger.child('trivia') });
   client.emoji = (name) => resolveEmoji(client, name);
