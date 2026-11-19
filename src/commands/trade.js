@@ -99,7 +99,7 @@ export default {
             description: `at ${money(price)} · paid ${shells(total)} including ${shells(cut)} fee.` + unlockedText(fresh),
             color: OK,
             fields: [
-              { name: 'wallet', value: shells(result.wallet), inline: true },
+              { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
               { name: 'position', value: num(after?.holdings[key]?.qty ?? qty), inline: true },
               { name: 'board', value: board.degraded ? 'last good quote' : 'live', inline: true }
             ]
@@ -147,7 +147,7 @@ export default {
           description: `at ${money(price)} · collected ${shells(proceeds)} after ${shells(cut)} fee.` + unlockedText(fresh),
           color: pnl >= 0 ? OK : DANGER,
           fields: [
-            { name: 'wallet', value: shells(result.wallet), inline: true },
+            { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
             { name: 'realised', value: `${pnl >= 0 ? '+' : '-'}${shells(Math.abs(pnl))}`, inline: true },
             { name: 'remaining', value: num(after?.holdings[key]?.qty ?? 0), inline: true }
           ]

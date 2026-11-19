@@ -52,7 +52,7 @@ export default {
       const board = await market.board();
       return buildContracts({
         guildId,
-        date: new Date(now),
+        date: new Date(),
         priceOf: (key) => goodPrice(key, board.fxFactor)
       });
     };
@@ -78,10 +78,10 @@ export default {
       if (stale) {
         fields.push({
           name: 'expired job',
-          value: `${stale.title}\nclear it with \`/contracts abandon\` to take a new one.`
+          value: `${stale.title}\nthe window closed - taking a new job clears it.`
         });
       }
-      fields.push(...contracts.map((contract) => contractField(contract, { action: !active && !stale })));
+      fields.push(...contracts.map((contract) => contractField(contract, { action: !active })));
 
       return reply({
         embeds: [
@@ -241,7 +241,7 @@ export default {
               unlockedText(fresh),
             color: OK,
             fields: [
-              { name: 'wallet', value: shells(result.wallet), inline: true },
+              { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
               { name: 'jobs done', value: num(after?.stats?.contracts ?? 1), inline: true },
               { name: 'reference', value: `\`${result.done.id}\``, inline: true }
             ]

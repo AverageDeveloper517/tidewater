@@ -69,7 +69,7 @@ export default {
       });
     }
 
-    const { result, fresh } = await economy.update(interaction.user.id, (p) => {
+    const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
       const now = p.items[key] ?? 0;
       const price = nextCost(key, now);
       if (price == null) return { ok: false };
@@ -94,7 +94,7 @@ export default {
             unlockedText(fresh),
           color: OK,
           fields: [
-            { name: 'wallet', value: shells(result.wallet), inline: true },
+            { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
             { name: 'level', value: `${result.level} / ${item.max}`, inline: true },
             ...(key === 'vault' ? [{ name: 'vault cap', value: shells(capFor(result.level)), inline: true }] : [])
           ]

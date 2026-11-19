@@ -43,7 +43,7 @@ export default {
     const unit = await market.goods(key);
     const total = Math.round(unit * qty);
 
-    const { result, fresh } = await economy.update(interaction.user.id, (p) => {
+    const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
       const have = p.goods[key] ?? 0;
       if (have < qty) return { ok: false };
       p.goods[key] = have - qty;
@@ -63,7 +63,7 @@ export default {
           description: `${num(qty)} × ${shells(unit)} = **${shells(total)}**` + unlockedText(fresh),
           color: OK,
           fields: [
-            { name: 'wallet', value: shells(result.wallet), inline: true },
+            { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
             { name: 'left in hold', value: num(result.left), inline: true }
           ],
           footer: 'local goods drift with the real euro quote, once a day'

@@ -34,7 +34,7 @@ export default {
     const base = 120 + Math.min(streak, 30) * 15;
     const bonus = Math.floor(Math.random() * 40);
 
-    const { result, fresh } = await economy.update(interaction.user.id, (p) => {
+    const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
       p.streak = streak;
       p.lastDaily = now;
       credit(p, base + bonus);
@@ -54,7 +54,7 @@ export default {
           title: 'the day is yours',
           description: body,
           color: OK,
-          fields: [{ name: 'wallet', value: shells(result.wallet) }]
+          fields: [{ name: 'wallet', value: shells(after?.wallet ?? result.wallet) }]
         })
       ]
     });

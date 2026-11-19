@@ -57,7 +57,7 @@ export default {
       });
     }
 
-    const { result } = await economy.update(interaction.user.id, (p) => {
+    const { result, player: after } = await economy.update(interaction.user.id, (p) => {
       if (action === 'deposit') {
         p.wallet -= amount;
         p.bank += amount;
@@ -75,7 +75,7 @@ export default {
           description: `${action === 'deposit' ? 'in' : 'out'}: ${shells(amount)}`,
           color: OK,
           fields: [
-            { name: 'wallet', value: shells(result.wallet), inline: true },
+            { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
             { name: 'bank', value: `${shells(result.bank)} / ${num(player.bankCap)}`, inline: true }
           ]
         })

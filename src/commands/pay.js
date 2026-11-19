@@ -42,16 +42,17 @@ export default {
     }
 
     await economy.update(interaction.user.id, (p) => debit(p, amount));
-    const { result, fresh } = await economy.update(target.id, (p) => {
+    const { result, fresh, player: afterTarget } = await economy.update(target.id, (p) => {
       credit(p, amount);
       return p.wallet;
     });
+    const sender = economy.get(interaction.user.id);
 
     return reply({
       embeds: [
         card({
           title: 'transfer cleared',
-          description: `${signed(amount)} → **${target.username}**\n\nyour wallet: ${shells(player.wallet - amount)}\ntheir wallet: ${shells(result)}`,
+          description: `${signed(amount)} → **${target.username}**\n\nyour wallet: ${shells(sender?.wallet ?? player.wallet - amount)}\ntheir wallet: ${shells(afterTarget?.wallet ?? result)}`,
           color: OK,
           footer: fresh.length ? `${fresh.map((a) => a.name).join(', ')} unlocked for them` : 'Tidewater'
         })

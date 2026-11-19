@@ -1,6 +1,6 @@
-// Harbour contracts: three small delivery jobs, deterministic for a guild and a
-// UTC day. Same board for everyone in the server, priced off the same local goods
-// the rest of the economy uses, reset at midnight UTC.
+// Harbour contracts: three small delivery jobs. Goods, clients and quantities
+// are deterministic for a guild and a UTC day; the payout is marked to the local
+// goods board, so it drifts slightly with the euro quote. Reset at midnight UTC.
 
 import { GOODS } from '../data/goods.js';
 import { dayKey, hash, roll, seeded } from './util.js';

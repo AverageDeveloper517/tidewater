@@ -48,7 +48,7 @@ export default {
     const payout = Math.round(wager * factor);
     const net = payout - wager;
 
-    const { result, fresh } = await economy.update(interaction.user.id, (p) => {
+    const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
       if (!debit(p, wager)) return { ok: false };
       p.stats.spins += 1;
       p.stats.gambled += wager;
@@ -74,7 +74,7 @@ export default {
             unlockedText(fresh),
           color: factor ? OK : DANGER,
           fields: [
-            { name: 'wallet', value: shells(result.wallet), inline: true },
+            { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
             { name: 'paid', value: `${factor || 0}×`, inline: true },
             { name: 'net', value: `${net >= 0 ? '+' : '-'}${shells(Math.abs(net))}`, inline: true }
           ],

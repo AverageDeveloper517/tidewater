@@ -38,7 +38,7 @@ export default {
     const base = 40 + levelBonus + Math.floor(Math.random() * 31);
     const pay = Math.round(base * stormPay * nightPay);
 
-    const { result, fresh } = await economy.update(interaction.user.id, (p) => {
+    const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
       p.lastWork = now;
       p.stats.work += 1;
       credit(p, pay);
@@ -65,7 +65,7 @@ export default {
           description: lines.join('\n') + unlockedText(fresh),
           color: GOLD,
           fields: [
-            { name: 'wallet', value: shells(result.wallet), inline: true },
+            { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
             { name: 'shifts', value: String(player.stats.work + 1), inline: true },
             { name: 'light', value: wx.isNight ? 'after sunset' : 'daylight', inline: true }
           ]
