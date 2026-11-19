@@ -458,17 +458,11 @@ at boot.
 
 ## Roadmap
 
-Shipped: 21 commands, live market, weather-driven farming, swell-driven fishing, pokedex, trivia,
-slots, upgrades, achievements, keyless fallbacks, custom emoji pipeline.
+Three things still worth building:
 
-Next, roughly in order:
-
-- [ ] seasonal events keyed to real solstice and equinox dates
-- [ ] per-guild leaderboards with a monthly reset
-- [ ] prestige: reset a dock for a permanent multiplier
-- [ ] `/dock` - one rendered card with port, weather, garden and net worth
-- [ ] a shipped custom emoji art set in `assets/emoji/`
-- [ ] optional Postgres adapter for servers past ~50k players
+- seasonal events keyed to real solstice and equinox dates
+- per-guild leaderboards with a monthly reset
+- a shipped custom emoji art set in `assets/emoji/`
 
 Not planned: prefix commands, message-content reading, paid API dependencies, privileged intents.
 
