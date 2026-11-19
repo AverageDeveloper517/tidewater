@@ -4,11 +4,13 @@ import { requireProfile } from '../lib/flow.js';
 import { seasonFor, seasonCropMult } from '../lib/season.js';
 import { moonPhase, nextPhase } from '../lib/moon.js';
 import { affinity } from '../services/weather.js';
+import { seaBand, bandReport } from '../lib/water.js';
 import { CROPS } from '../data/tables.js';
 import { GLYPH } from '../lib/emoji.js';
 import { timeTag } from '../lib/util.js';
 
 const WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const GLASS_ARROW = { falling: GLYPH.down, rising: GLYPH.up, steady: GLYPH.flat };
 
 const weekday = (date) => {
   const stamp = Date.parse(`${date}T00:00:00Z`);
@@ -34,7 +36,15 @@ export default {
     const player = economy.get(interaction.user.id);
     if (await requireProfile(reply, player)) return;
 
-    const [outlook, t] = await Promise.all([weather.daily(player.port), tide.at(player.port)]);
+    const [outlook, t, wx] = await Promise.all([
+      weather.daily(player.port),
+      tide.at(player.port),
+      weather.forecast(player.port)
+    ]);
+    const glass = wx.glass ?? { key: 'unknown', bite: 1, delta: null, storm: false };
+    const band = seaBand(t.sst);
+    const report = bandReport(t.sst);
+    const resident = report.inBand.slice(0, 2).join(', ');
     const now = Date.now();
     const season = seasonFor(new Date(now));
     const moon = moonPhase(new Date(now));
@@ -84,6 +94,12 @@ export default {
     const low = t.extremes.find((e) => e.type === 'low');
 
     const advisories = [];
+    if (glass.storm) {
+      const drop = glass.delta != null && glass.delta <= -6;
+      advisories.push(
+        `${GLYPH.storm} ${drop ? `glass down ${Math.abs(glass.delta).toFixed(1)} hPa/3h` : `deep low ${glass.pressure} hPa`} - storm coming`
+      );
+    }
     for (const day of outlook.days) {
       if (day.wind != null && day.wind >= 45) advisories.push(`${GLYPH.warn} small-craft advisory ${weekday(day.date)} (${day.wind} km/h)`);
       if (day.precip != null && day.precip >= 20) advisories.push(`${GLYPH.warn} heavy rain ${weekday(day.date)} (${day.precip.toFixed(0)} mm)`);
@@ -102,7 +118,7 @@ export default {
       .filter(Boolean)
       .join('\n');
 
-    const degraded = outlook.degraded || t.degraded;
+    const degraded = outlook.degraded || t.degraded || wx.degraded;
     const color = advisories.length ? WARN : nowRow ? GOLD : ACCENT;
 
     return reply({
@@ -124,12 +140,16 @@ export default {
               value:
                 (tideLine || 'no marks in the window') +
                 `\nrange ${t.range.toFixed(2)} m · ${t.tideClass.label}` +
-                (t.sst != null ? `\nsea ${t.sst.toFixed(1)}°C` : ''),
+                (t.sst != null ? `\nsea ${t.sst.toFixed(1)}°C · ${band.label}${resident ? ` · ${resident} in` : ''}` : ''),
               inline: true
             },
             {
               name: 'bait',
-              value: `×${t.bite.toFixed(2)} rare weight\n${t.biteLabel}`,
+              value:
+                `tide ×${t.bite.toFixed(2)} · ${t.biteLabel}\n` +
+                (glass.delta != null
+                  ? `${GLASS_ARROW[glass.key] ?? GLYPH.flat} glass ${glass.key} ×${glass.bite.toFixed(2)}`
+                  : 'glass unknown'),
               inline: true
             },
             { name: 'planting, best day in four', value: planting || 'no forecast to plan against' },

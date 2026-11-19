@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { affinity, bucketFor, createWeather, waveMood, BUCKETS } from '../src/services/weather.js';
+import { affinity, bucketFor, createWeather, waveMood, glassFor, BUCKETS } from '../src/services/weather.js';
 import { CROPS } from '../src/data/tables.js';
 
 const logger = { warn() {} };
@@ -48,6 +48,8 @@ test('offline weather still returns a usable forecast', async () => {
   assert.ok(BUCKETS.includes(wx.bucket));
   assert.notEqual(wx.bucket, 'storm');
   assert.equal(typeof wx.isNight, 'boolean');
+  assert.equal(wx.glass.key, 'unknown');
+  assert.equal(wx.glass.bite, 1);
 
   const sea = await weather.waves(port);
   assert.equal(sea.degraded, true);
@@ -90,6 +92,41 @@ test('a live-shaped outlook parses sun, rain and wind', async () => {
   assert.equal(outlook.days[1].precipChance, 82);
   assert.equal(outlook.days[1].wind, 47);
   assert.equal(outlook.days[0].daylightMs, 51120 * 1000);
+});
+
+test('a live forecast carries the three-hour barometer trend', async () => {
+  const hour = 3_600_000;
+  const base = Math.floor(Date.now() / hour) * hour;
+  const times = Array.from({ length: 8 }, (_, i) =>
+    new Date(base - (7 - i) * hour).toISOString().slice(0, 16)
+  );
+  const pressures = [1010, 1008, 1006, 1004, 1002.4, 1001, 999, 997.2];
+
+  const weather = createWeather({
+    logger,
+    fetchJson: async () => ({
+      current: {
+        temperature_2m: 18.4,
+        weather_code: 0,
+        wind_speed_10m: 11.2,
+        surface_pressure: 997.2
+      },
+      hourly: { time: times, surface_pressure: pressures },
+      daily: {
+        sunrise: [new Date(base - 7 * hour).toISOString().slice(0, 16)],
+        sunset: [new Date(base + 4 * hour).toISOString().slice(0, 16)],
+        daylight_duration: [39600]
+      }
+    })
+  });
+
+  const wx = await weather.forecast(port);
+  assert.equal(wx.degraded, false);
+  assert.equal(wx.pressure, 997.2);
+  assert.equal(wx.pressureDelta, -5.2);
+  assert.equal(wx.glass.key, 'falling');
+  assert.equal(wx.glass.bite, 1.08);
+  assert.equal(wx.glass.storm, false);
 });
 
 test('geocode returns null when nothing matches', async () => {

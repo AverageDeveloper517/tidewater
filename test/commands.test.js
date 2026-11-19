@@ -9,6 +9,7 @@ import { createTide } from '../src/services/tide.js';
 import tideCommand from '../src/commands/tide.js';
 import almanacCommand from '../src/commands/almanac.js';
 import contractsCommand from '../src/commands/contracts.js';
+import fishCommand from '../src/commands/fish.js';
 
 const PORT = { name: 'Lisbon', country: 'PT', lat: 38.72, lon: -9.14 };
 
@@ -151,4 +152,23 @@ test('abandon sets the lockout and blocks an immediate take', async () => {
 
   const retry = await h.run(contractsCommand, { sub: 'take', slot: 1 });
   assert.equal(retry.data.title, 'the board is closed to you');
+});
+
+test('/fish lands a good offline and says the feeds are down', async () => {
+  const h = await harness();
+  const out = await h.run(fishCommand);
+
+  assert.match(out.data.description, /you pulled up/);
+  assert.match(out.data.footer?.text ?? '', /fallback in use/);
+  assert.equal(out.data.description.includes('hPa/3h'), false, 'no fake barometer');
+
+  const player = h.economy.get('u1');
+  assert.equal(player.stats.fish, 1);
+  const landed = Object.values(player.goods).reduce((sum, qty) => sum + qty, 0);
+  assert.equal(landed, 1);
+
+  const names = out.data.fields.map((field) => field.name);
+  assert.ok(names.includes('water'));
+  assert.ok(names.includes('glass'));
+  assert.equal(out.data.fields.find((field) => field.name === 'glass').value, 'no reading');
 });

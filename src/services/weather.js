@@ -77,6 +77,70 @@ export function waveMood(height) {
   return { key: 'storm', label: 'storm swell', rare: 2.1, junk: 2.4 };
 }
 
+/**
+ * The barometer. A falling glass means fish feed ahead of the weather; a rising
+ * one means bright, settled water and a slow bite. A deep low is a real warning,
+ * not a mood. With no feed the multiplier is 1 - stranded players are not
+ * punished for an outage.
+ */
+export function glassFor({ pressure = null, delta = null, degraded = false } = {}) {
+  const known = !degraded && Number.isFinite(pressure) && Number.isFinite(delta);
+  if (!known) {
+    return {
+      key: 'unknown',
+      label: 'glass unknown',
+      note: 'no pressure feed - fishing is unchanged',
+      bite: 1,
+      pressure: null,
+      delta: null,
+      storm: false
+    };
+  }
+
+  const d = Number(delta);
+  const key = d <= -2 ? 'falling' : d >= 2 ? 'rising' : 'steady';
+  const bite = d <= -6 ? 1.14 : d <= -3 ? 1.08 : d < -1 ? 1.03 : d >= 6 ? 0.94 : d >= 3 ? 0.97 : 1;
+  const label = key === 'falling' ? 'glass falling' : key === 'rising' ? 'glass rising' : 'glass steady';
+  const note =
+    key === 'falling'
+      ? 'they feed before the weather'
+      : key === 'rising'
+        ? 'bright, settled water - a slow bite'
+        : 'nothing moving in the air';
+
+  return {
+    key,
+    label,
+    note,
+    bite,
+    pressure: Math.round(pressure * 10) / 10,
+    delta: Math.round(d * 10) / 10,
+    storm: pressure < 985 || d <= -6
+  };
+}
+
+/** Three-hour change in surface pressure, from the hourly series. */
+function pressureDelta(hourly, now) {
+  const times = hourly?.time ?? [];
+  const values = hourly?.surface_pressure ?? [];
+  if (!times.length) return null;
+
+  let index = -1;
+  for (let i = 0; i < times.length; i += 1) {
+    const at = utc(times[i]);
+    if (at == null) continue;
+    if (at <= now) index = i;
+    else break;
+  }
+  if (index < 3) return null;
+
+  const a = numOrNull(values[index]);
+  const b = numOrNull(values[index - 3]);
+  if (a == null || b == null) return null;
+  return Math.round((a - b) * 10) / 10;
+}
+
+
 export function createWeather({ fetchJson = getJson, logger } = {}) {
   return {
     async geocode(name) {
@@ -106,12 +170,16 @@ export function createWeather({ fetchJson = getJson, logger } = {}) {
           sunset: null,
           daylightMs: null,
           isNight: false,
+          pressure: null,
+          pressureDelta: null,
+          glass: glassFor(),
           degraded: true
         };
       }
       const url =
         `https://api.open-meteo.com/v1/forecast?latitude=${port.lat}&longitude=${port.lon}` +
-        '&current=temperature_2m,weather_code,wind_speed_10m' +
+        '&current=temperature_2m,weather_code,wind_speed_10m,surface_pressure' +
+        '&hourly=surface_pressure' +
         '&daily=sunrise,sunset,daylight_duration&forecast_days=1&timezone=UTC';
 
       try {
@@ -123,6 +191,8 @@ export function createWeather({ fetchJson = getJson, logger } = {}) {
         const daylight = numOrNull(data?.daily?.daylight_duration?.[0]);
         const now = Date.now();
         const isNight = sunrise && sunset ? now < sunrise || now >= sunset : fallbackNight(port, now);
+        const delta = pressureDelta(data?.hourly, now);
+        const pressure = numOrNull(current.surface_pressure);
         return {
           bucket,
           label: LABEL[bucket],
@@ -133,6 +203,9 @@ export function createWeather({ fetchJson = getJson, logger } = {}) {
           sunset,
           daylightMs: daylight != null ? Math.round(daylight * 1000) : daylightFrom(sunrise, sunset),
           isNight,
+          pressure,
+          pressureDelta: delta,
+          glass: glassFor({ pressure, delta }),
           degraded: false
         };
       } catch (err) {
@@ -149,6 +222,9 @@ export function createWeather({ fetchJson = getJson, logger } = {}) {
           sunset: null,
           daylightMs: null,
           isNight: fallbackNight(port, Date.now()),
+          pressure: null,
+          pressureDelta: null,
+          glass: glassFor({ degraded: true }),
           degraded: true
         };
       }

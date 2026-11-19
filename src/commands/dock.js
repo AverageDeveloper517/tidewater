@@ -3,8 +3,12 @@ import { card, shells, num, duration, ACCENT, GOLD, OK, WARN } from '../lib/them
 import { requireProfile, levelInfo } from '../lib/flow.js';
 import { seasonFor } from '../lib/season.js';
 import { moonPhase } from '../lib/moon.js';
+import { seaBand } from '../lib/water.js';
+import { GLYPH } from '../lib/emoji.js';
 import { CROPS } from '../data/tables.js';
 import { timeTag } from '../lib/util.js';
+
+const GLASS_ARROW = { falling: GLYPH.down, rising: GLYPH.up, steady: GLYPH.flat };
 
 export default {
   data: new SlashCommandBuilder().setName('dock').setDescription('one card: port, sky, garden, worth'),
@@ -23,6 +27,8 @@ export default {
     ]);
     const season = seasonFor();
     const moon = moonPhase();
+    const band = seaBand(t.sst);
+    const glass = wx.glass ?? { key: 'unknown', delta: null };
     const { level, into, span } = levelInfo(player);
 
     let portfolio = 0;
@@ -66,7 +72,8 @@ export default {
           description:
             `${season.glyph} **${season.name}** — ${season.blurb}\n` +
             `${wx.icon} **${wx.label}**${wx.temp != null ? ` · ${wx.temp}°C` : ''}` +
-            `${wx.wind != null ? ` · ${wx.wind} km/h` : ''}\n` +
+            `${wx.wind != null ? ` · ${wx.wind} km/h` : ''}` +
+            `${glass.delta != null ? ` · ${GLASS_ARROW[glass.key] ?? GLYPH.flat} ${Math.abs(glass.delta).toFixed(1)} hPa/3h` : ''}\n` +
             `${into}/${span} xp`,
           color: gardenColor,
           fields: [
@@ -83,7 +90,8 @@ export default {
                 `${t.trend} ${t.level.toFixed(2)} m · ${t.biteLabel}\n` +
                 (t.extremes[0]
                   ? `${t.extremes[0].type === 'high' ? '▲' : '▼'} ${timeTag(t.extremes[0].at, 'R')}`
-                  : 'no marks in the window'),
+                  : 'no marks in the window') +
+                (t.sst != null ? `\n${t.sst.toFixed(1)}°C ${band.label} water` : ''),
               inline: true
             },
             {

@@ -33,14 +33,14 @@ const PAGES = [
     label: 'water',
     title: 'the water',
     body:
-      '`/fish` — swell height changes what bites\n' +
-      '`/tide` — real high and low water, and how the tide changes the bite\n' +
-      '`/almanac` — six-day outlook, moon, tide and the best crop to plant\n' +
+      '`/fish` — swell, tide, water temperature and the barometer change what bites\n' +
+      '`/tide` — real high and low water, sea temperature, and how the tide changes the bite\n' +
+      '`/almanac` — six-day outlook, moon, tide, glass and the best crop to plant\n' +
       '`/garden plant` — crops, real weather at your port\n' +
       '`/garden harvest` — weather and season multiply the yield\n' +
       '`/garden view` — what is growing and the current sky\n' +
       '`/catch` — a random pokedex entry, duplicates pay a bounty\n\n' +
-      'the season follows the real calendar, the tide follows the real moon, and night water fishes differently. rough water and a rising tide are the good combination.\n\n' +
+      'the season follows the real calendar, the tide follows the real moon, and night water fishes differently. cold water belongs to cod and herring, warm water to bonito and mahi-mahi, and a falling glass feeds the fish.\n\n' +
       `crops: ${Object.values(CROPS)
         .map((c) => `${c.name} (${Math.round(c.growMs / 60000)}m)`)
         .join(', ')}`

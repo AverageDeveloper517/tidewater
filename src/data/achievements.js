@@ -21,7 +21,10 @@ export const ACHIEVEMENTS = [
   { id: 'first_contract', name: 'First Contract', desc: 'deliver your first harbour job', reward: 100, test: (p) => (p.stats.contracts ?? 0) >= 1 },
   { id: 'runner', name: 'Runner', desc: 'deliver 5 harbour jobs', reward: 350, test: (p) => (p.stats.contracts ?? 0) >= 5 },
   { id: 'freighter', name: 'Freighter', desc: 'deliver 30 harbour jobs', reward: 2_000, test: (p) => (p.stats.contracts ?? 0) >= 30 },
-  { id: 'tidereader', name: 'Tide Reader', desc: 'check the tide 10 times', reward: 250, test: (p) => (p.stats.tides ?? 0) >= 10 }
+  { id: 'tidereader', name: 'Tide Reader', desc: 'check the tide 10 times', reward: 250, test: (p) => (p.stats.tides ?? 0) >= 10 },
+  { id: 'cold_water', name: 'Cold Water', desc: 'land an Atlantic cod', reward: 300, test: (p) => (p.goods?.cod ?? 0) >= 1 },
+  { id: 'warm_water', name: 'Warm Water', desc: 'land a mahi-mahi', reward: 500, test: (p) => (p.goods?.mahi ?? 0) >= 1 },
+  { id: 'glass_eye', name: 'Glass Eye', desc: 'fish 10 times with the glass falling', reward: 250, test: (p) => (p.stats.glassFalls ?? 0) >= 10 }
 ];
 
 export function drain(p) {

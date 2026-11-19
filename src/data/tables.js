@@ -50,6 +50,13 @@ export const FISH = {
   mackerel: { name: 'Mackerel', base: 30, weight: 14, rarity: 'common' },
   bass: { name: 'Sea bass', base: 58, weight: 10, rarity: 'uncommon' },
   eel: { name: 'Silver eel', base: 120, weight: 6, rarity: 'uncommon' },
+  // Regional species. `temp` is a real sea-surface tolerance band in °C: the
+  // live water temperature scales their weight, so cold ports fish cold.
+  // Harbour staples above stay unbounded so every port can fill a contract.
+  cod: { name: 'Atlantic cod', base: 42, weight: 9, rarity: 'common', temp: [0, 11] },
+  herring: { name: 'Herring shoal', base: 24, weight: 11, rarity: 'common', temp: [3, 14] },
+  bonito: { name: 'Bonito', base: 96, weight: 4, rarity: 'uncommon', temp: [17, 27] },
+  mahi: { name: 'Mahi-mahi', base: 180, weight: 1.8, rarity: 'rare', temp: [21, 30] },
   pearl: { name: 'Pearl', base: 260, weight: 3.2, rarity: 'rare' },
   abyss: { name: 'Abyssal pearl', base: 780, weight: 0.8, rarity: 'rare' }
 };

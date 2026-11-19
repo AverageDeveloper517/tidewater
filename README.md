@@ -5,7 +5,8 @@
 Live crypto and currency prices drive the exchange. The actual weather in a city you pick decides
 your harvest. The real tide height offshore decides when the fish feed, and the real swell decides
 what bites. Even the moon is real: spring and neap tides are calculated from the synodic cycle, not
-rolled on a timer. Every data source is public and keyless - no API key, no paid tier, no signup.
+rolled on a timer. And the sea temperature decides which species are in the water at all. Every data
+source is public and keyless - no API key, no paid tier, no signup.
 
 No privileged intents · no database · 26 slash commands · Node 18.17+
 
@@ -78,8 +79,9 @@ next high    ▲ high · 23:41
 next low     ▼ low · 06:02
              0.31 m · in 9 hours
 range (24h)  2.71 m · spring tide
-water        18.2°C      swell 2.2 m · 11.6s
-fishing      ×1.16 rare weight
+water        18.2°C · temperate · bonito in
+swell        2.2 m · 11.6s
+fishing      tide ×1.16 · ▼ glass falling ×1.08
 moon         ● full moon · 100% lit · the moon is pulling hard
 ```
 
@@ -107,7 +109,7 @@ resets in 6 hours · same board for everyone in this server
 |---|---|
 | fixed shop prices | five instruments priced from real markets, fee on both sides |
 | random weather flavour text | Open-Meteo decides your crop yield, in a city you choose |
-| `!fish` returns a random string | swell, tide height and daylight all change the loot table |
+| `!fish` returns a random string | swell, tide height, sea temperature and the barometer all change the loot table |
 | a daily quest on a timer | contracts priced off the live local goods board, reset at UTC midnight |
 | one global high-score | leaderboards scoped to the server they are asked from |
 | generic collectibles | PokeAPI, 1025 entries, duplicates pay a bounty |
@@ -192,7 +194,7 @@ No role-position rules apply: the bot never creates, edits, deletes, or assigns 
    ├─ /contracts ─ three daily jobs → deliver goods → payout
    │
    ├─ /garden ── plant → real weather × real season → harvest → /sell
-   ├─ /fish ──── swell × tide × daylight → loot table → /sell
+   ├─ /fish ──── swell × tide × water temp × glass → loot table → /sell
    ├─ /catch ─── pokedex roll, duplicate → bounty
    │
    ├─ /market ── live board
@@ -201,7 +203,7 @@ No role-position rules apply: the bot never creates, edits, deletes, or assigns 
 ```
 
 `/tide` and `/almanac` are the planning layer: next high and low water, six-day outlook, moon phase,
-sunrise and sunset, and the crop with the best multiplier in the next four days.
+sunrise and sunset, the barometer, and the crop with the best multiplier in the next four days.
 
 Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 
@@ -230,9 +232,9 @@ Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 | `/holdings` | cost basis and unrealised profit per position |
 | `/sell <good> <qty>` | sell fish and crops at the local price |
 | `/garden plant\|harvest\|view` | crops, real weather and real season multipliers |
-| `/fish` | swell, tide and daylight drive the catch table, 45s cooldown |
-| `/tide` | current height, trend, next four high/low marks, bite multiplier |
-| `/almanac` | six-day outlook, moon, tide, sun and the best crop to plant |
+| `/fish` | swell, tide, water temperature and pressure drive the catch table, 45s cooldown |
+| `/tide` | current height, trend, next four high/low marks, sea temperature, bite multiplier |
+| `/almanac` | six-day outlook, moon, tide, glass, sun and the best crop to plant |
 | `/catch` | random pokedex entry, bounty on duplicates, 90s cooldown |
 | `/trivia` | four buttons, 15 seconds, streak bonus |
 | `/slots <wager>` | 20× jackpot, 8× triple, 1.6× pair |
@@ -265,6 +267,42 @@ tide under the fishing table.
 The bite multiplier is bounded to `0.85 – 1.45`. A rising tide over a big range is the best water;
 slack water is the worst. A degraded tide feed never nerfs a player - it returns `×1.00`.
 
+### Water temperature
+
+Sea-surface temperature arrives in the same marine call. Every regional species carries a real
+tolerance band in °C, and the live reading scales its weight - full inside the band, down to 2% four
+degrees outside it.
+
+| species | band | where it shows up |
+|---|---|---|
+| Atlantic cod | 0 – 11°C | cold ports, winter water |
+| Herring shoal | 3 – 14°C | cold to cool |
+| Bonito | 17 – 27°C | warm summer water |
+| Mahi-mahi | 21 – 30°C | tropical and Gulf Stream |
+
+Harbour staples - mackerel, bass, eel, kelp, pearls - carry no band, so a contract is completable in
+any port. A cold port really fishes cod and herring; a warm one really fishes bonito and mahi.
+`/tide` and `/fish` name the residents, and an unknown sea temperature leaves the old table exactly
+as it was instead of inventing a reading.
+
+### The glass
+
+`surface_pressure` rides along in the same forecast call. The bot reads the three-hour delta and
+turns it into a bite modifier:
+
+| reading | bite | what it means |
+|---|---|---|
+| falling 3–6 hPa/3h | ×1.08 | they feed before the weather |
+| falling more than 6 | ×1.14 | a deep low is on the way |
+| steady | ×1.00 | nothing moving in the air |
+| rising 3–6 hPa/3h | ×0.97 | bright, settled water |
+| rising more than 6 | ×0.94 | a slow, clear day |
+
+A pressure below 985 hPa, or a drop of six hPa in three hours, is raised as a storm warning in
+`/almanac` rather than used as a mood. The glass is one number, so it does not get its own command:
+it appears on `/dock`, `/tide`, `/almanac` and `/fish`, and it compounds with the tide modifier to a
+combined cap of `1.60`.
+
 The moon is computed, not fetched. `src/lib/moon.js` anchors on a known new moon
 (2000-01-06 18:14 UTC) and uses a 29.530588853-day synodic month. That gives the phase name,
 illuminated percentage, waxing/waning flag and the spring/neap factor used by `/tide`, `/almanac` and
@@ -282,6 +320,8 @@ defaulting to daytime.
 ```
 tide fallback: live sea level → 15 min cache → lunar M2 + S2 curve
 sun fallback:  live daily forecast → longitude solar clock
+sea fallback:  live sea temperature → no band shift, old table intact
+glass fallback: live pressure → no bonus, no penalty
 ```
 
 Extremes are refined with a parabola through the three hourly samples around each turn, so the listed
@@ -310,7 +350,7 @@ stored per guild - the board is a pure function, so it survives restarts and cos
 - `deliver` removes the goods and pays atomically, in a single per-user queue update
 - `abandon` clears the job and applies a 10-minute lockout
 - expired jobs clear themselves; you never lose goods for missing a window
-- achievements: First Contract, Runner, Freighter, Tide Reader
+- achievements: First Contract, Runner, Freighter, Tide Reader, Cold Water, Warm Water, Glass Eye
 
 Because the board is deterministic, the test suite asserts that the same guild and day produce the
 same three jobs, and that a different guild or day produces a different board.
@@ -325,7 +365,7 @@ All keyless, all public.
 |---|---|---|---|---|
 | CoinGecko | `/api/v3/simple/price` | tide, reef, glow | 2 min | last good quote, then base |
 | Frankfurter | `/v1/latest?base=USD` | euro and yen notes | 2 min | last good quote, then base |
-| Open-Meteo | `/v1/forecast` current | garden multiplier, work pay, day/night | 10 min | deterministic daily guess, never a fake storm |
+| Open-Meteo | `/v1/forecast` current | garden multiplier, work pay, day/night, barometer | 10 min | deterministic daily guess, never a fake storm |
 | Open-Meteo | `/v1/forecast` daily | six-day outlook, sunrise, sunset, UV | 30 min | deterministic six-day table, no fake storm |
 | Open-Meteo Marine | `/v1/marine` waves | fish loot table | 30 min | deterministic daily guess |
 | Open-Meteo Marine | `/v1/marine` sea level | tide height, trend, next marks, sea temp | 15 min | lunar M2 + S2 curve |
@@ -382,7 +422,7 @@ Eco bot/
 │  │  ├─ economy.js            players, per-user queue, levels, achievements, guild marks
 │  │  ├─ market.js             live board, cache, fallbacks, goods pricing
 │  │  ├─ tide.js               sea level series, extremes, trend, bite, lunar fallback
-│  │  ├─ weather.js            geocode, forecast, outlook, waves, day/night, crop affinity
+│  │  ├─ weather.js            geocode, forecast, outlook, waves, barometer, day/night, crop affinity
 │  │  ├─ pokedex.js            roll, rarity, sprite
 │  │  ├─ trivia.js             fetch, decode, shuffle, fallback
 │  │  └─ settings.js           per-guild ticker config
@@ -408,10 +448,11 @@ Eco bot/
 │  │  ├─ season.js             real-calendar seasons and crop multipliers
 │  │  ├─ store.js              atomic JSON persistence
 │  │  ├─ theme.js              palette, cards, formatting
-│  │  └─ util.js               seeded rng, weighted picks, dates
+│  │  ├─ util.js               seeded rng, weighted picks, dates
+│  │  └─ water.js              species temperature bands and the catch table
 │  └─ tools/
 │     └─ upload-emojis.js      push PNGs to application emojis
-├─ test/                       nine suites, no network
+├─ test/                       ten suites, no network
 ├─ assets/emoji/               drop art here, `npm run emojis`
 ├─ data/                       store.json at runtime
 ├─ Dockerfile · .dockerignore · ecosystem.config.cjs · .nvmrc
@@ -447,7 +488,7 @@ A player record:
   contract: { id, slot, title, items: [{ key, qty }], reward, xp, expires, takenAt } | null,
   contractLock: 0,
   items:    { rod, net, vault, charm },
-  stats:    { work, fish, harvest, trades, triviaRight, contracts, tides, ... },
+  stats:    { work, fish, harvest, trades, triviaRight, contracts, tides, glassFalls, ... },
   achievements: ['first_light', 'dockhand'],
   createdAt
 }
@@ -526,12 +567,13 @@ test/season.test.js    month-to-season mapping, crop multipliers, year-round var
 test/moon.test.js      known new/full moons, synodic cycle, illumination, spring/neap, next phase
 test/tide.test.js      UTC parsing, extremes, interpolation, range, bite mood, lunar fallback
 test/contracts.test.js determinism, guild/day separation, quantities, margin, expiry, manifests
-test/commands.test.js  /tide, /almanac and /contracts through a full take → deliver → abandon cycle
-test/weather.test.js   WMO buckets, crop affinity, swell buckets, outlook parsing, offline forecasts
+test/commands.test.js  /tide, /almanac, /contracts and an offline /fish through the fallbacks
+test/water.test.js     species bands, sea bands, catch weighting, glass thresholds
+test/weather.test.js   WMO buckets, crop affinity, swell buckets, outlook and barometer parsing
 test/trivia.test.js    entity decoding, shuffle, remote and local question paths, formatting
 ```
 
-55 tests across nine suites, all offline.
+67 tests across ten suites, all offline.
 
 Everything is injected - services accept `fetchJson`, so the suites run offline and deterministic.
 
@@ -564,6 +606,8 @@ ok   pokedex - tapu-koko (#785), base xp 257
 | garden multiplier looks random | it is the live weather in **your port** | `/garden view` shows the condition and multiplier |
 | harvest pays less than last month | the real-calendar season changed | `/dock` shows the current season and its crop table |
 | tide line barely moves | sea level is hourly and cached for 15 minutes | `/tide` footer says whether it is live or the lunar fallback |
+| no cod in warm water | cod carry a 0–11°C band and the sea is 22°C | `/tide` shows the band and the resident species |
+| barometer missing | the pressure feed is down | the glass is `×1.00`, never a penalty |
 | contract vanished | the board resets at 00:00 UTC | expired jobs clear themselves; take a new one from `/contracts view` |
 | work says night shift in daylight | the port is in another timezone or the sun feed is down | the fallback uses longitude, so high latitudes drift |
 | `/catch` shows "pokedex offline" | PokeAPI unreachable | it already used the harbour fallback list |
