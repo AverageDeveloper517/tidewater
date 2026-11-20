@@ -45,7 +45,6 @@ export function blankPlayer({ id, name }) {
       tides: 0,
       glassFalls: 0,
       sales: 0,
-      dailies: 0,
       logs: 0,
       logDays: 0
     },

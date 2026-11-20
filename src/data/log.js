@@ -16,8 +16,7 @@ export const LOG_STATS = [
   'caught',
   'contracts',
   'tides',
-  'sales',
-  'dailies'
+  'sales'
 ];
 
 export const LOG_TASKS = [
@@ -29,8 +28,7 @@ export const LOG_TASKS = [
   { id: 'trivia', name: 'get one answer right', target: 1, stat: 'triviaRight', hint: '/trivia', quick: true },
   { id: 'catch', name: 'net a pokedex entry', target: 1, stat: 'caught', hint: '/catch', quick: true },
   { id: 'sell', name: 'sell from the hold', target: 1, stat: 'sales', hint: '/sell', quick: false },
-  { id: 'tide', name: 'read the tide', target: 1, stat: 'tides', hint: '/tide', quick: true },
-  { id: 'daily', name: 'collect the day', target: 1, stat: 'dailies', hint: '/daily', quick: false }
+  { id: 'tide', name: 'read the tide', target: 1, stat: 'tides', hint: '/tide', quick: true }
 ];
 
 export const TASK_XP = 8;

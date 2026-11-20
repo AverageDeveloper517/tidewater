@@ -256,8 +256,8 @@ Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 
 `/daily` and `/work` are the floor, not the game. `/log` gives every player three jobs for the UTC
 day, drawn deterministically from the systems already here: a shift, two casts, a harvest, a trade, a
-delivery, a correct answer, a catch, a sale, a tide check or the daily itself. One job is always
-quick, so the page is never three long cooldowns at once.
+delivery, a correct answer, a catch, a sale or a tide check. One job is always quick, so the page is
+never three long cooldowns at once.
 
 - each job pays `60 + 6 × (level − 1)` shells and 8 xp
 - finishing all three pays another `150 + 10 × (level − 1)` shells and 20 xp
@@ -562,7 +562,7 @@ A player record:
   contractLock: 0,
   log:      { day, base: { fish, work, ... }, claimed: ['fish'], bonus: false } | null,
   items:    { rod, net, vault, charm },
-  stats:    { work, fish, harvest, trades, triviaRight, contracts, tides, glassFalls, sales, dailies, logs, logDays, ... },
+  stats:    { work, fish, harvest, trades, triviaRight, contracts, tides, glassFalls, sales, logs, logDays, ... },
   achievements: ['first_light', 'dockhand'],
   createdAt
 }
