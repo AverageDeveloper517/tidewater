@@ -3,8 +3,12 @@ import { card, shells, num, OK, DANGER, WARN } from '../lib/theme.js';
 import { requireProfile, unlockedText } from '../lib/flow.js';
 import { credit } from '../services/economy.js';
 import { GOODS, SELLABLE } from '../data/goods.js';
+import { goodPrice } from '../services/market.js';
 
-const choices = SELLABLE.map((key) => ({ name: GOODS[key].name, value: key }));
+const choices = [
+  ...SELLABLE.map((key) => ({ name: GOODS[key].name, value: key })),
+  { name: 'everything in the hold', value: 'all' }
+];
 
 export default {
   data: new SlashCommandBuilder()
@@ -22,6 +26,65 @@ export default {
 
     const key = options.getString('good', true);
     const raw = options.getString('quantity', true).trim().toLowerCase();
+
+    if (key === 'all') {
+      const board = await market.board();
+      const rows = Object.entries(player.goods)
+        .filter(([, qty]) => qty > 0)
+        .map(([k, qty]) => ({ key: k, qty, unit: goodPrice(k, board.fxFactor) }))
+        .filter((row) => row.unit > 0);
+
+      if (!rows.length) {
+        return reply({
+          embeds: [card({ title: 'empty hold', description: 'there is nothing sellable aboard.', color: WARN })]
+        });
+      }
+
+      const { result, fresh, player: after } = await economy.update(interaction.user.id, (p) => {
+        const sold = [];
+        let total = 0;
+
+        for (const row of rows) {
+          const have = p.goods[row.key] ?? 0;
+          if (have <= 0) continue;
+          const gain = Math.round(row.unit * have);
+          if (gain <= 0) continue;
+          sold.push({ name: GOODS[row.key]?.name ?? row.key, qty: have, gain });
+          total += gain;
+          delete p.goods[row.key];
+        }
+
+        if (!sold.length) return { ok: false };
+        p.stats.sales = (p.stats.sales ?? 0) + 1;
+        credit(p, total);
+        return { ok: true, sold, total, wallet: p.wallet };
+      });
+
+      if (!result?.ok) {
+        return reply({
+          embeds: [card({ title: 'the hold moved', description: 'nothing was sold - try again.', color: WARN })]
+        });
+      }
+
+      return reply({
+        embeds: [
+          card({
+            title: 'the hold, cleared',
+            description:
+              result.sold.map((row) => `${num(row.qty)} × ${row.name} → ${shells(row.gain)}`).join('\n') +
+              `\n\n**${shells(result.total)}** for the lot.` +
+              unlockedText(fresh),
+            color: OK,
+            fields: [
+              { name: 'wallet', value: shells(after?.wallet ?? result.wallet), inline: true },
+              { name: 'hold', value: 'empty', inline: true }
+            ],
+            footer: 'local goods drift with the real euro quote, once a day'
+          })
+        ]
+      });
+    }
+
     const heldQty = player.goods[key] ?? 0;
 
     if (!heldQty) {
@@ -48,6 +111,7 @@ export default {
       if (have < qty) return { ok: false };
       p.goods[key] = have - qty;
       if (p.goods[key] === 0) delete p.goods[key];
+      p.stats.sales = (p.stats.sales ?? 0) + 1;
       credit(p, total);
       return { ok: true, left: p.goods[key] ?? 0, wallet: p.wallet };
     });

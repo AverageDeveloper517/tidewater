@@ -24,7 +24,11 @@ export const ACHIEVEMENTS = [
   { id: 'tidereader', name: 'Tide Reader', desc: 'check the tide 10 times', reward: 250, test: (p) => (p.stats.tides ?? 0) >= 10 },
   { id: 'cold_water', name: 'Cold Water', desc: 'land an Atlantic cod', reward: 300, test: (p) => (p.goods?.cod ?? 0) >= 1 },
   { id: 'warm_water', name: 'Warm Water', desc: 'land a mahi-mahi', reward: 500, test: (p) => (p.goods?.mahi ?? 0) >= 1 },
-  { id: 'glass_eye', name: 'Glass Eye', desc: 'fish 10 times with the glass falling', reward: 250, test: (p) => (p.stats.glassFalls ?? 0) >= 10 }
+  { id: 'glass_eye', name: 'Glass Eye', desc: 'fish 10 times with the glass falling', reward: 250, test: (p) => (p.stats.glassFalls ?? 0) >= 10 },
+  { id: 'full_page', name: 'Full Page', desc: 'finish all three daily log jobs', reward: 200, test: (p) => (p.stats.logDays ?? 0) >= 1 },
+  { id: 'log_keeper', name: 'Log Keeper', desc: 'claim 15 daily log jobs', reward: 500, test: (p) => (p.stats.logs ?? 0) >= 15 },
+  { id: 'week_of_work', name: 'A Week of Work', desc: 'finish the full log on 7 days', reward: 1_200, test: (p) => (p.stats.logDays ?? 0) >= 7 },
+  { id: 'captain', name: 'Captain', desc: 'reach level 20', reward: 2_000, test: (p) => 1 + Math.floor(Math.sqrt(Math.max(0, p.xp) / 40)) >= 20 }
 ];
 
 export function drain(p) {

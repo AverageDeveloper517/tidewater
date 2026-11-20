@@ -1,6 +1,8 @@
 import { drain } from '../data/achievements.js';
 import { capFor } from '../data/items.js';
 import { GOODS } from '../data/goods.js';
+import { statSnapshot } from '../data/log.js';
+import { dayKey } from '../lib/util.js';
 
 export const START_WALLET = 250;
 export const START_XP = 0;
@@ -20,6 +22,7 @@ export function blankPlayer({ id, name }) {
     streak: 0,
     lastDaily: 0,
     lastWork: 0,
+    log: null,
     holdings: {},
     garden: null,
     goods: {},
@@ -40,7 +43,11 @@ export function blankPlayer({ id, name }) {
       jackpots: 0,
       contracts: 0,
       tides: 0,
-      glassFalls: 0
+      glassFalls: 0,
+      sales: 0,
+      dailies: 0,
+      logs: 0,
+      logDays: 0
     },
     achievements: [],
     createdAt: Date.now()
@@ -147,6 +154,24 @@ export function createEconomy({ store }) {
       if (!player) return false;
       if (player.guilds?.[guildId]) return false;
       player.guilds = { ...(player.guilds ?? {}), [guildId]: Date.now() };
+      save(all);
+      return true;
+    },
+
+    /**
+     * Roll the Harbour Log over at the first command of a UTC day. Synchronous
+     * on purpose: it runs from the interaction router before the command, so
+     * the command's own stats count from a baseline that already exists.
+     */
+    rollDay(id, now = Date.now()) {
+      const all = load();
+      const player = all[id];
+      if (!player) return false;
+
+      const day = dayKey(new Date(now));
+      if (player.log?.day === day && player.log.base) return false;
+
+      player.log = { day, base: statSnapshot(player.stats), claimed: [], bonus: false };
       save(all);
       return true;
     },

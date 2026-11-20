@@ -1,9 +1,10 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { card, shells, num, duration, OK, ACCENT, GOLD, WARN, DANGER } from '../lib/theme.js';
 import { requireProfile, unlockedText } from '../lib/flow.js';
-import { addXp, credit } from '../services/economy.js';
+import { addXp, credit, levelFor } from '../services/economy.js';
 import { goodPrice } from '../services/market.js';
 import { buildContracts, isExpired, missingFor } from '../lib/contracts.js';
+import { contractBonus } from '../lib/rank.js';
 import { timeTag } from '../lib/util.js';
 
 const LOCK_MS = 10 * 60_000;
@@ -11,15 +12,23 @@ const LOCK_MS = 10 * 60_000;
 const itemsLine = (contract) =>
   contract.items.map((item) => `${item.name} ×${num(item.qty)}`).join(' · ');
 
-const contractField = (contract, { action = true } = {}) => ({
-  name: `${contract.slot}. ${contract.title}`,
-  value:
-    `${contract.brief}\n` +
-    `${itemsLine(contract)}\n` +
-    `pays **${shells(contract.reward)}** · +${contract.xp} xp` +
-    (action ? ` · \`/contracts take slot:${contract.slot}\`` : ''),
-  inline: false
-});
+const payFor = (contract, level) => {
+  const rank = Math.round(contract.reward * contractBonus(level));
+  return { base: contract.reward, rank, total: contract.reward + rank };
+};
+
+const contractField = (contract, { action = true, level = 1 } = {}) => {
+  const pay = payFor(contract, level);
+  return {
+    name: `${contract.slot}. ${contract.title}`,
+    value:
+      `${contract.brief}\n` +
+      `${itemsLine(contract)}\n` +
+      `pays **${shells(pay.total)}**${pay.rank ? ` · rank +${shells(pay.rank)}` : ''} · +${contract.xp} xp` +
+      (action ? ` · \`/contracts take slot:${contract.slot}\`` : ''),
+    inline: false
+  };
+};
 
 export default {
   data: new SlashCommandBuilder()
@@ -59,16 +68,19 @@ export default {
 
     if (sub === 'view') {
       const contracts = await boardNow();
+      const level = levelFor(player.xp);
       const active = player.contract && !isExpired(player.contract, now) ? player.contract : null;
       const stale = player.contract && isExpired(player.contract, now) ? player.contract : null;
 
       const fields = [];
       if (active) {
         const missing = missingFor(active, player.goods);
+        const pay = payFor(active, level);
         fields.push({
           name: `active · ${active.title}`,
           value:
             `${itemsLine(active)}\n` +
+            `pays **${shells(pay.total)}**${pay.rank ? ` · rank +${shells(pay.rank)}` : ''}\n` +
             (missing.length
               ? `missing: ${missing.map((m) => `${m.name} ${m.have}/${m.need}`).join(', ')}`
               : 'all goods in the hold - `/contracts deliver`') +
@@ -81,7 +93,7 @@ export default {
           value: `${stale.title}\nthe window closed - taking a new job clears it.`
         });
       }
-      fields.push(...contracts.map((contract) => contractField(contract, { action: !active })));
+      fields.push(...contracts.map((contract) => contractField(contract, { action: !active, level })));
 
       return reply({
         embeds: [
@@ -130,6 +142,7 @@ export default {
       if (!chosen) {
         return reply({ embeds: [card({ title: 'no such job', description: 'slots are 1, 2 and 3.', color: DANGER })] });
       }
+      const pay = payFor(chosen, levelFor(player.xp));
 
       const { result } = await economy.update(interaction.user.id, (p) => {
         if (p.contract && !isExpired(p.contract, Date.now())) return { ok: false };
@@ -151,7 +164,7 @@ export default {
             description:
               `${chosen.brief}\n\n` +
               `**deliver:** ${itemsLine(chosen)}\n` +
-              `**pays:** ${shells(chosen.reward)} · +${chosen.xp} xp\n\n` +
+              `**pays:** ${shells(pay.total)}${pay.rank ? ` · rank +${shells(pay.rank)}` : ''} · +${chosen.xp} xp\n\n` +
               `the job is yours until ${timeTag(chosen.expires, 't')} (${timeTag(chosen.expires, 'R')}).`,
             color: OK,
             fields: [
@@ -211,12 +224,13 @@ export default {
           if (p.goods[item.key] <= 0) delete p.goods[item.key];
         }
 
-        credit(p, p.contract.reward);
+        const rankPay = Math.round(p.contract.reward * contractBonus(levelFor(p.xp)));
+        credit(p, p.contract.reward + rankPay);
         addXp(p, p.contract.xp);
         p.stats.contracts = (p.stats.contracts ?? 0) + 1;
         const done = p.contract;
         p.contract = null;
-        return { ok: true, wallet: p.wallet, done };
+        return { ok: true, wallet: p.wallet, done, rankPay };
       });
 
       if (!result?.ok) {
@@ -237,7 +251,8 @@ export default {
             title: `delivered · ${result.done.title}`,
             description:
               `${itemsLine(result.done)} handed over.\n` +
-              `**${shells(result.done.reward)}** and +${result.done.xp} xp.` +
+              `**${shells(result.done.reward + (result.rankPay ?? 0))}** and +${result.done.xp} xp.` +
+              (result.rankPay ? `\nrank bonus: ${shells(result.rankPay)}.` : '') +
               unlockedText(fresh),
             color: OK,
             fields: [

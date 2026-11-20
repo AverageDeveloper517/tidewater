@@ -29,6 +29,7 @@ export default {
 
       p.streak = streak;
       p.lastDaily = now;
+      p.stats.dailies = (p.stats.dailies ?? 0) + 1;
       credit(p, base + bonus);
       addXp(p, 20);
       return { ok: true, base, bonus, total: base + bonus, streak, wallet: p.wallet };

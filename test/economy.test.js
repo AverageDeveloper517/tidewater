@@ -130,3 +130,32 @@ test('markGuild records each guild once and ignores unknown players', async () =
   assert.equal(economy.markGuild('4', null), false, 'no guild id is a no-op');
   assert.equal(economy.markGuild('nobody', 'guild-a'), false, 'unknown player is a no-op');
 });
+
+test('rollDay snapshots the baseline once per UTC day', async () => {
+  const economy = createEconomy({ store: memoryStore() });
+  await economy.create('5', { name: 'log', port: null });
+  await economy.update('5', (p) => {
+    p.stats.fish = 10;
+  });
+
+  const morning = Date.parse('2026-11-20T06:00:00Z');
+  assert.equal(economy.rollDay('5', morning), true);
+
+  let player = economy.get('5');
+  assert.equal(player.log.day, '2026-11-20');
+  assert.equal(player.log.base.fish, 10);
+  assert.deepEqual(player.log.claimed, []);
+  assert.equal(player.log.bonus, false);
+
+  assert.equal(economy.rollDay('5', morning + 3_600_000), false, 'same day is a no-op');
+
+  await economy.update('5', (p) => {
+    p.stats.fish += 2;
+  });
+  assert.equal(economy.rollDay('5', Date.parse('2026-11-21T00:05:00Z')), true);
+
+  player = economy.get('5');
+  assert.equal(player.log.day, '2026-11-21');
+  assert.equal(player.log.base.fish, 12, 'tomorrow starts from the current stats');
+  assert.equal(economy.rollDay('nobody', morning), false);
+});

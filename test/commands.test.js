@@ -14,6 +14,10 @@ import workCommand from '../src/commands/work.js';
 import dailyCommand from '../src/commands/daily.js';
 import bankCommand from '../src/commands/bank.js';
 import payCommand from '../src/commands/pay.js';
+import logCommand from '../src/commands/log.js';
+import sellCommand from '../src/commands/sell.js';
+import { logTasksFor } from '../src/data/log.js';
+import { dayKey } from '../src/lib/util.js';
 
 const PORT = { name: 'Lisbon', country: 'PT', lat: 38.72, lon: -9.14 };
 
@@ -238,4 +242,68 @@ test('a transfer cannot credit a target when the sender was spent elsewhere', as
   assert.equal(h.economy.get('u1').wallet, 0);
   assert.equal(h.economy.get('u2').wallet, before, 'no shells minted');
   assert.equal(out.data.title, 'short');
+});
+
+test('/log shows three jobs and pays the page once', async () => {
+  const h = await harness();
+  h.economy.rollDay('u1');
+
+  const day = dayKey(new Date());
+  const tasks = logTasksFor('u1', day);
+
+  await h.economy.update('u1', (p) => {
+    for (const task of tasks) p.stats[task.stat] = (p.stats[task.stat] ?? 0) + task.target;
+  });
+
+  const view = await h.run(logCommand, { sub: 'view' });
+  assert.equal(view.data.title, "the day's log");
+  assert.equal(view.data.fields.length, 3);
+  assert.match(view.data.description, /3 ready/);
+
+  const before = h.economy.get('u1').wallet;
+  const paid = await h.run(logCommand, { sub: 'claim' });
+  assert.equal(paid.data.title, 'log paid');
+
+  const after = h.economy.get('u1');
+  assert.equal(after.log.claimed.length, 3);
+  assert.equal(after.log.bonus, true);
+  assert.equal(after.stats.logDays, 1);
+  assert.equal(after.stats.logs, 3);
+  assert.ok(after.achievements.includes('full_page'));
+  assert.ok(after.wallet - before >= 500, 'three jobs, the page bonus and the achievement');
+
+  const again = await h.run(logCommand, { sub: 'claim' });
+  assert.equal(again.data.title, 'nothing finished yet');
+});
+
+test('/sell all clears every good in the hold', async () => {
+  const h = await harness();
+  await h.economy.update('u1', (p) => {
+    p.goods = { kelp: 3, pearl: 1 };
+  });
+  const before = h.economy.get('u1').wallet;
+
+  const out = await h.run(sellCommand, { strings: { good: 'all', quantity: 'all' } });
+  assert.match(out.data.title, /hold, cleared/);
+
+  const after = h.economy.get('u1');
+  assert.deepEqual(after.goods, {});
+  assert.equal(after.stats.sales, 1);
+  assert.ok(after.wallet > before);
+});
+
+test('a ranked delivery adds the contract bonus', async () => {
+  const h = await harness();
+  await h.economy.update('u1', (p) => {
+    p.xp = 640; // level 5
+  });
+
+  await h.run(contractsCommand, { sub: 'take', slot: 2 });
+  const contract = h.economy.get('u1').contract;
+  await h.economy.update('u1', (p) => {
+    for (const item of contract.items) p.goods[item.key] = (p.goods[item.key] ?? 0) + item.qty;
+  });
+
+  const out = await h.run(contractsCommand, { sub: 'deliver' });
+  assert.match(out.data.description, /rank bonus/);
 });

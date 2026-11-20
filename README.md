@@ -8,7 +8,7 @@ what bites. Even the moon is real: spring and neap tides are calculated from the
 rolled on a timer. And the sea temperature decides which species are in the water at all. Every data
 source is public and keyless - no API key, no paid tier, no signup.
 
-No privileged intents · no database · 26 slash commands · Node 18.17+
+No privileged intents · no database · 27 slash commands · Node 18.17+
 
 [![Node](https://img.shields.io/badge/node-%E2%89%A518.17-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![discord.js](https://img.shields.io/badge/discord.js-v14-5865F2?logo=discord&logoColor=white)](https://discord.js.org)
@@ -28,6 +28,7 @@ feed. A complete Discord economy bot you can self-host in about five minutes.
 - [Your data and backups](#your-data-and-backups)
 - [Bot setup: scopes, intents, permissions](#bot-setup-scopes-intents-permissions)
 - [The loop](#the-loop)
+- [Harbour log and ranks](#harbour-log-and-ranks)
 - [Commands](#commands)
 - [Tides, moon and light](#tides-moon-and-light)
 - [Harbour contracts](#harbour-contracts)
@@ -225,7 +226,8 @@ No role-position rules apply: the bot never creates, edits, deletes, or assigns 
    ├─ /dock ─── one card: port, sky, season, tide, garden, net worth
    ├─ /daily ── streak shells
    ├─ /work ─── shift pay, +12% in rain, +35% in a storm, +15% after dark
-   ├─ /contracts ─ three daily jobs → deliver goods → payout
+   ├─ /log ──── three jobs for today → per-job pay + full-page bonus
+   ├─ /contracts ─ three daily jobs → deliver goods → payout (rank bonus)
    │
    ├─ /garden ── plant → real weather × real season → harvest → /sell
    ├─ /fish ──── swell × tide × water temp × glass → loot table → /sell
@@ -238,6 +240,8 @@ No role-position rules apply: the bot never creates, edits, deletes, or assigns 
 
 `/tide` and `/almanac` are the planning layer: next high and low water, six-day outlook, moon phase,
 sunrise and sunset, the barometer, and the crop with the best multiplier in the next four days.
+`/log` is the daily spine: three jobs that pull you through fishing, gardening, trading, contracts and
+the games, with a full-page bonus for finishing all three.
 
 Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 
@@ -248,23 +252,56 @@ Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 
 ---
 
+## Harbour log and ranks
+
+`/daily` and `/work` are the floor, not the game. `/log` gives every player three jobs for the UTC
+day, drawn deterministically from the systems already here: a shift, two casts, a harvest, a trade, a
+delivery, a correct answer, a catch, a sale, a tide check or the daily itself. One job is always
+quick, so the page is never three long cooldowns at once.
+
+- each job pays `60 + 6 × (level − 1)` shells and 8 xp
+- finishing all three pays another `150 + 10 × (level − 1)` shells and 20 xp
+- progress is measured from a snapshot of your counters taken at the first command of the day, so a
+  restart or a missed `/log` cannot lose progress
+- `/log view` shows three progress bars; `/log claim` pays everything finished
+- the page resets at 00:00 UTC, like the contract board
+
+Levels also carry rank, and rank is not just a title:
+
+| rank | level | contract pay |
+|---|---|---|
+| Deckhand | 1 | base |
+| Able Hand | 5 | +5% |
+| Bosun | 10 | +10% |
+| Mate | 15 | +15% |
+| Captain | 20 | +20% |
+| Master | 30 | +20% (capped) |
+| Harbourmaster | 45 | +20% (capped) |
+
+The bonus is added when a contract is delivered and shown on the board, so a high-level player earns
+more from the same job without changing what the job costs. `/dock`, `/profile` and the log all show
+the ladder, and `/leaderboard metric:harbour log` ranks full pages.
+
+---
+
 ## Commands
 
 | command | what it does |
 |---|---|
 | `/start <port>` | create a profile, geocode a real city |
-| `/dock` | one card: port, sky, season, garden, net worth, cooldowns |
-| `/profile [user]` | public card: level, streak, collection, achievements |
+| `/dock` | one card: port, sky, season, garden, daily log, net worth, cooldowns |
+| `/profile [user]` | public card: rank, level, streak, collection, achievements |
 | `/balance` | wallet, bank, portfolio value |
 | `/daily` | 20h cooldown, streak bonus, resets after two missed days |
 | `/work` | 30m cooldown, weather pay multiplier, +15% night shift |
+| `/log view\|claim` | three daily jobs, paid per job plus a full-page bonus |
 | `/pay <user> <amount>` | transfer shells |
 | `/bank <deposit\|withdraw> <amount>` | move shells into or out of the vault |
 | `/contracts view\|take\|deliver\|abandon` | three daily delivery jobs, priced off local goods |
 | `/market` | live board with a refresh button |
 | `/trade <buy\|sell> <instrument> <qty>` | market order at the quoted price |
 | `/holdings` | cost basis and unrealised profit per position |
-| `/sell <good> <qty>` | sell fish and crops at the local price |
+| `/sell <good> <qty>` | sell fish and crops at the local price; `all` clears the hold |
 | `/garden plant\|harvest\|view` | crops, real weather and real season multipliers |
 | `/fish` | swell, tide, water temperature and pressure drive the catch table, 45s cooldown |
 | `/tide` | current height, trend, next four high/low marks, sea temperature, bite multiplier |
@@ -275,8 +312,8 @@ Shells (`◈`) are the only currency. Upgrades in `/shop` are permanent:
 | `/shop [item]` | shelf or buy the next upgrade |
 | `/inventory` | kit, hold, collection |
 | `/achievements` | paginated list: unlocked, remaining, completion |
-| `/leaderboard [metric]` | worth, level, streak or collection - this server only |
-| `/help` | paginated command board |
+| `/leaderboard [metric]` | worth, level, streak, collection or log - this server only |
+| `/help` | paginated command board, starting with a first-run path |
 | `/settings <channel> <bool>` | market ticker channel, manage-server only |
 
 Economy commands are ephemeral by default; `/profile`, `/market`, `/tide` and `/leaderboard` are public.
@@ -448,7 +485,7 @@ Eco bot/
 ├─ src/
 │  ├─ index.js                 bootstrap: client, services, loaders, shutdown
 │  ├─ deploy-commands.js       diff-aware slash registration
-│  ├─ commands/                26 files: data + run
+│  ├─ commands/                27 files: data + run
 │  ├─ events/
 │  │  ├─ ready.js              presence rotation, market ticker, heartbeat
 │  │  └─ interactionCreate.js  gate → defer → run
@@ -465,6 +502,7 @@ Eco bot/
 │  │  ├─ instruments.js        the five tradeable things
 │  │  ├─ items.js              shop tiers and bank caps
 │  │  ├─ goods.js              sellable goods derived from crops + fish
+│  │  ├─ log.js                daily jobs, deterministic draw, rewards
 │  │  ├─ achievements.js       predicates over a player record
 │  │  └─ fallback-pokemon.js   offline pokedex
 │  ├─ lib/
@@ -479,6 +517,7 @@ Eco bot/
 │  │  ├─ loader.js             command discovery + duplicate checks
 │  │  ├─ logger.js             leveled console output
 │  │  ├─ moon.js               phase, illumination, spring/neap tides, next phase
+│  │  ├─ rank.js               the long ladder and contract pay bonus
 │  │  ├─ season.js             real-calendar seasons and crop multipliers
 │  │  ├─ store.js              atomic JSON persistence
 │  │  ├─ theme.js              palette, cards, formatting
@@ -486,7 +525,7 @@ Eco bot/
 │  │  └─ water.js              species temperature bands and the catch table
 │  └─ tools/
 │     └─ upload-emojis.js      push PNGs to application emojis
-├─ test/                       ten suites, no network
+├─ test/                       thirteen suites, no network
 ├─ assets/emoji/               drop art here, `npm run emojis`
 ├─ data/                       store.json + backups/ at runtime
 ├─ Dockerfile · .dockerignore · ecosystem.config.cjs · .nvmrc
@@ -521,8 +560,9 @@ A player record:
   guilds:   { '1234567890': 1730000000000 },   // first seen, for server leaderboards
   contract: { id, slot, title, items: [{ key, qty }], reward, xp, expires, takenAt } | null,
   contractLock: 0,
+  log:      { day, base: { fish, work, ... }, claimed: ['fish'], bonus: false } | null,
   items:    { rod, net, vault, charm },
-  stats:    { work, fish, harvest, trades, triviaRight, contracts, tides, glassFalls, ... },
+  stats:    { work, fish, harvest, trades, triviaRight, contracts, tides, glassFalls, sales, dailies, logs, logDays, ... },
   achievements: ['first_light', 'dockhand'],
   createdAt
 }
@@ -535,6 +575,10 @@ truncate the save. Snapshots, rotation and restore are covered in
 
 The contract board is deliberately not in this file. It is rebuilt from
 `hash(dayKey:guildId)`, so there is one source of truth and no stale guild rows to migrate.
+
+The daily log is in the save, but its three jobs are not: they are drawn from `seeded(log:day:userId)`
+so the same page can always be rebuilt. The save only holds the day, the stat baseline taken at the
+first command of that day, and which jobs were paid - enough to survive a crash mid-page.
 
 ---
 
@@ -602,20 +646,22 @@ npm test
 ```
 
 ```
-test/economy.test.js   level curve, credit/debit guards, net worth, per-user serialisation, achievements, guild marks
+test/economy.test.js   level curve, credit/debit guards, net worth, per-user serialisation, achievements, guild marks, day roll
 test/store.test.js     atomic writes, snapshot rotation, timer backups, damaged-save refusal
+test/log.test.js       deterministic jobs, baseline progress, reward scaling, UTC reset
+test/rank.test.js      rank thresholds, next rank, contract bonus tiers and cap
 test/market.test.js    live pricing, dead feed fallback, last-good persistence, fee, max-affordable buys, daily drift
 test/season.test.js    month-to-season mapping, crop multipliers, year-round variance
 test/moon.test.js      known new/full moons, synodic cycle, illumination, spring/neap, next phase
 test/tide.test.js      UTC parsing, extremes, interpolation, range, bite mood, lunar fallback
 test/contracts.test.js determinism, guild/day separation, quantities, margin, expiry, manifests
-test/commands.test.js  /tide, /almanac, /contracts, offline /fish, and double-click races on /work, /daily, /bank, /pay
+test/commands.test.js  /tide, /almanac, /contracts, /log, /fish, /sell all, rank pay, and double-click races
 test/water.test.js     species bands, sea bands, catch weighting, glass thresholds
 test/weather.test.js   WMO buckets, crop affinity, swell buckets, outlook and barometer parsing
 test/trivia.test.js    entity decoding, shuffle, remote and local question paths, formatting
 ```
 
-78 tests across eleven suites, all offline.
+88 tests across thirteen suites, all offline.
 
 Everything is injected - services accept `fetchJson`, so the suites run offline and deterministic.
 
@@ -651,6 +697,7 @@ ok   pokedex - tapu-koko (#785), base xp 257
 | no cod in warm water | cod carry a 0–11°C band and the sea is 22°C | `/tide` shows the band and the resident species |
 | barometer missing | the pressure feed is down | the glass is `×1.00`, never a penalty |
 | contract vanished | the board resets at 00:00 UTC | expired jobs clear themselves; take a new one from `/contracts view` |
+| `/log` progress sits at zero | the baseline is taken at your first command after midnight UTC | progress counts from that command onward; do the action named on the card |
 | work says night shift in daylight | the port is in another timezone or the sun feed is down | the fallback uses longitude, so high latitudes drift |
 | `/catch` shows "pokedex offline" | PokeAPI unreachable | it already used the harbour fallback list |
 | bank says vault is full | cap is 5,000 at vault level 1 | `/shop item:Vault` |

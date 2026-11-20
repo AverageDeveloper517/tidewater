@@ -40,6 +40,9 @@ export async function execute({ client, interaction, logger }) {
 
     const started = Date.now();
 
+    // The day's log rolls before the command, so this command's progress counts.
+    client.economy.rollDay(interaction.user.id);
+
     await command.run({
       client,
       interaction,

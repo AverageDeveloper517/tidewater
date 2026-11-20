@@ -3,6 +3,7 @@ import { card, shells, num, bar, GOLD, ACCENT } from '../lib/theme.js';
 import { requireProfile, levelInfo } from '../lib/flow.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { GLYPH } from '../lib/emoji.js';
+import { nextRank, rankFor } from '../lib/rank.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -24,6 +25,8 @@ export default {
     const worth = player.wallet + player.bank;
     const unique = Object.keys(player.catches).length;
     const unlocked = new Set(player.achievements ?? []);
+    const rank = rankFor(level);
+    const next = nextRank(level);
 
     return reply({
       embeds: [
@@ -31,7 +34,7 @@ export default {
           title: `${target.username}`,
           thumbnail: target.displayAvatarURL({ size: 128 }),
           description:
-            `**${player.port?.name ?? 'no port'}** · level **${level}** · ${player.streak} day streak\n` +
+            `**${player.port?.name ?? 'no port'}** · **${rank.name}** · level **${level}** · ${player.streak} day streak\n` +
             `${bar(into, span, 14)} ${into}/${span} xp`,
           color: GOLD,
           fields: [
@@ -41,6 +44,16 @@ export default {
             { name: 'portfolio', value: `${Object.keys(player.holdings).length} position(s)`, inline: true },
             { name: 'collection', value: `${unique} / 1025 unique`, inline: true },
             { name: 'achievements', value: `${unlocked.size} / ${ACHIEVEMENTS.length}`, inline: true },
+            {
+              name: 'rank',
+              value: `${rank.name}\n${next ? `${next.name} at level ${next.level}` : 'top of the ladder'}`,
+              inline: true
+            },
+            {
+              name: 'harbour log',
+              value: `${num(player.stats.logs ?? 0)} jobs\n${num(player.stats.logDays ?? 0)} full pages`,
+              inline: true
+            },
             {
               name: 'shifts',
               value: `${num(player.stats.work)} worked\n${num(player.stats.fish)} casts\n${num(player.stats.harvest)} harvests`,

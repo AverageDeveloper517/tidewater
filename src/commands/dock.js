@@ -5,8 +5,10 @@ import { seasonFor } from '../lib/season.js';
 import { moonPhase } from '../lib/moon.js';
 import { seaBand } from '../lib/water.js';
 import { GLYPH } from '../lib/emoji.js';
+import { rankFor } from '../lib/rank.js';
 import { CROPS } from '../data/tables.js';
-import { timeTag } from '../lib/util.js';
+import { logTasksFor, logProgress } from '../data/log.js';
+import { dayKey, timeTag } from '../lib/util.js';
 
 const GLASS_ARROW = { falling: GLYPH.down, rising: GLYPH.up, steady: GLYPH.flat };
 
@@ -56,19 +58,33 @@ export default {
     const dailyLeft = player.lastDaily ? 20 * 3_600_000 - (now - player.lastDaily) : 0;
     const workLeft = player.lastWork ? 30 * 60_000 - (now - player.lastWork) : 0;
 
-    const next =
-      player.garden && now - player.garden.at >= CROPS[player.garden.crop].growMs
+    const day = dayKey(new Date(now));
+    const log = player.log?.day === day ? player.log : null;
+    const tasks = logTasksFor(player.id ?? interaction.user.id, day);
+    const base = log?.base ?? player.stats;
+    const claimed = new Set(log?.claimed ?? []);
+    const readyTasks = tasks.filter(
+      (task) => !claimed.has(task.id) && logProgress(task, player.stats, base) >= task.target
+    ).length;
+    const gardenReady = Boolean(player.garden && now - player.garden.at >= CROPS[player.garden.crop].growMs);
+
+    const next = readyTasks
+      ? `\`/log claim\` - ${readyTasks} job${readyTasks === 1 ? '' : 's'} ready`
+      : gardenReady
         ? 'harvest the flat, then `/sell`'
-        : dailyLeft > 0
-          ? '`/fish`, `/catch` or `/market`'
-          : '`/daily` is up';
+        : dailyLeft <= 0
+          ? '`/daily` is up'
+          : !player.contract
+            ? '`/contracts` - take a job'
+            : '`/fish` or `/work` for the hold';
 
     const where = [player.port?.name, player.port?.country].filter(Boolean).join(', ');
+    const rank = rankFor(level);
 
     return reply({
       embeds: [
         card({
-          title: `${where} · level ${level}`,
+          title: `${where} · level ${level} · ${rank.name}`,
           description:
             `${season.glyph} **${season.name}** — ${season.blurb}\n` +
             `${wx.icon} **${wx.label}**${wx.temp != null ? ` · ${wx.temp}°C` : ''}` +
@@ -84,6 +100,11 @@ export default {
             { name: 'net worth', value: shells(player.wallet + player.bank + portfolio), inline: true },
             { name: 'streak', value: `${num(player.streak)} day(s)`, inline: true },
             { name: 'collection', value: `${num(Object.keys(player.catches).length)} / 1025`, inline: true },
+            {
+              name: 'today',
+              value: `${claimed.size}/3 paid${readyTasks ? ` · ${readyTasks} ready` : ''}\n\`/log\``,
+              inline: true
+            },
             {
               name: 'tide',
               value:

@@ -5,15 +5,28 @@ import { CROPS } from '../data/tables.js';
 
 const PAGES = [
   {
+    label: 'start here',
+    title: 'start here',
+    body:
+      '`/start port:<city>` — open the dock and pick the real water you fish\n\n' +
+      '1. `/log` — three jobs for today; finish all three for a bonus\n' +
+      '2. `/daily` and `/work` — steady shells while you find your feet\n' +
+      '3. `/fish`, `/garden`, `/catch` — fill the hold\n' +
+      '4. `/sell` or `/contracts` — turn the hold into shells\n' +
+      '5. `/shop` — permanent kit: rod, net, vault, charm\n\n' +
+      '`/dock` always names the next thing worth doing. `/profile` shows your rank; every five levels adds contract pay.'
+  },
+  {
     label: 'dock',
     title: 'the dock',
     body:
       '`/start` — open a dock and pick a real port\n' +
-      '`/dock` — one card: port, sky, garden, net worth\n' +
-      '`/profile` — public card: level, streak, collection\n' +
+      '`/dock` — one card: port, sky, garden, log, net worth\n' +
+      '`/profile` — public card: rank, level, streak, collection\n' +
       '`/balance` — wallet, bank, portfolio\n' +
       '`/daily` — streak-based payout, resets after two missed days\n' +
       '`/work` — 30 minute shift, pays more in bad weather and after dark\n' +
+      '`/log` — three daily jobs, paid per job and all three\n' +
       '`/pay` — send shells to another dock\n' +
       '`/bank` — deposit or withdraw; the vault caps it\n' +
       '`/contracts` — three daily delivery jobs from the harbour board\n' +
@@ -26,7 +39,7 @@ const PAGES = [
       '`/market` — five live instruments, refresh button\n' +
       '`/trade` — buy or sell at the quoted price, 0.5% fee\n' +
       '`/holdings` — cost basis and unrealised profit\n' +
-      '`/sell` — dump fish and crops at today\'s local price\n\n' +
+      '`/sell` — sell fish and crops; `all` clears the whole hold\n\n' +
       'prices come from public crypto and currency feeds. no API keys, no accounts.'
   },
   {
@@ -60,7 +73,7 @@ const PAGES = [
       '`/shop` — rod, net, vault, charm and what each level does\n' +
       '`/shop item:<name>` — buy the next level\n' +
       '`/inventory` — kit, hold and collection\n' +
-      '`/leaderboard` — worth, level, streak or collection (this server)\n\n' +
+      '`/leaderboard` — worth, level, streak, collection or log (this server)\n\n' +
       'upgrades are permanent and apply to every future roll.'
   },
   {
@@ -69,7 +82,7 @@ const PAGES = [
     body:
       '`/settings` — market ticker channel (manage server only)\n' +
       '`/help` — this board\n\n' +
-      'no prefix commands. no message content is read. no database - a single json file holds saves.\n\n' +
+      'no prefix commands. no message content is read. saves live in one atomic json file, with rotating snapshots in data/backups.\n\n' +
       'the market, the weather and the pokedex are all public APIs with no key. if one is down the bot keeps running on the last good value or a local fallback.'
   }
 ];

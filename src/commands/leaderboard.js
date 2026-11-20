@@ -6,7 +6,8 @@ const METRICS = [
   { name: 'net worth', value: 'worth' },
   { name: 'level', value: 'level' },
   { name: 'daily streak', value: 'streak' },
-  { name: 'collection', value: 'catches' }
+  { name: 'collection', value: 'catches' },
+  { name: 'harbour log', value: 'log' }
 ];
 
 const MEDAL = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'];
@@ -19,6 +20,8 @@ const valueFor = (player, metric, prices) => {
       return player.streak;
     case 'catches':
       return Object.keys(player.catches).length;
+    case 'log':
+      return player.stats.logDays ?? 0;
     default:
       return netWorth(player, prices);
   }
@@ -59,7 +62,13 @@ export default {
     const lines = ranked.map((row, index) => {
       const name = row.player.name ?? row.player.id;
       const value =
-        metric === 'worth' ? shells(row.value) : metric === 'catches' ? `${num(row.value)} species` : num(row.value);
+        metric === 'worth'
+          ? shells(row.value)
+          : metric === 'catches'
+            ? `${num(row.value)} species`
+            : metric === 'log'
+              ? `${num(row.value)} full page${row.value === 1 ? '' : 's'}`
+              : num(row.value);
       return `${MEDAL[index] ?? `${index + 1}.`} **${name}** · ${value}`;
     });
 
@@ -70,7 +79,7 @@ export default {
           description: lines.join('\n'),
           color: GOLD,
           fields: [{ name: 'docks open', value: num(players.length), inline: true }],
-          footer: 'net worth uses live prices'
+          footer: metric === 'worth' ? 'net worth uses live prices' : 'this server only'
         })
       ]
     });

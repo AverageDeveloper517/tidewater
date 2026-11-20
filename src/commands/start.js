@@ -84,7 +84,7 @@ export default {
           fields: [
             { name: 'port', value: where, inline: true },
             { name: 'conditions', value: `${wx.icon} ${wx.label}${wx.temp != null ? ` · ${wx.temp}°C` : ''}`, inline: true },
-            { name: 'next', value: '`/daily` for the first shells\n`/work` for a shift\n`/market` to see what the water is worth' }
+            { name: 'next', value: '`/log` for three jobs\n`/daily` for the first shells\n`/fish` then `/sell` to fill the hold\n`/dock` names the next move' }
           ]
         })
       ]
